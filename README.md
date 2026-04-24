@@ -2,6 +2,9 @@
 深い闇に漂う、光の粒。気まぐれに集まり、弾け、回り、時々文字や形に並ぶ。  
 ログイン不要、インストール不要、データの外部送信無し。広告も一切無し。データ収集もしていません。  
 
+## スクリーンショット  
+<img width="480" alt="image" src="./images/2.1.jpg" />  
+
 ## 使い方  
 以下の２つの起動方法があります。  
 1. [https://hajimetwi3.github.io/Tsui-Lume/](https://hajimetwi3.github.io/Tsui-Lume/)をブラウザから開く  
