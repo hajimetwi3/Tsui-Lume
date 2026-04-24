@@ -254,6 +254,7 @@
     <button type="button" id="btn-heart"  title="ハート">♥</button>
     <button type="button" id="btn-star"   title="星">★</button>
     <button type="button" id="btn-text"   title="文字">T</button>
+    <button type="button" id="btn-fireworks" title="花火">🎆</button>
     <button type="button" id="btn-about"  title="About">?</button>
   </div>
   <div class="title">tsui-lume</div>
@@ -272,7 +273,7 @@
     <p class="modal-hint">
       画面上にマウスを乗せると右上にコントロールが現れます。<br>
       ❚❚ 停止 &nbsp; ✦ 粒を増やす(+10) &nbsp; ✦✦ 最大まで &nbsp; ↻ 色変更<br>
-      ◯♥★ 形に並ぶ &nbsp; T 文字に並ぶ<br>
+      ◯♥★ 形に並ぶ &nbsp; T 文字に並ぶ &nbsp; 🎆 花火<br>
       画面クリックで粒がそちらに動きます。
     </p>
 
@@ -334,6 +335,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
   let breathePhase = 0;               // oscillation phase for breathe mood
   let mousePos = null;                // {x, y} for mouse awareness
   let mouseIdleMs = 0;                // ms since last mouse movement near canvas
+
+  // ============================================================
+  // Fireworks — independent particle system, doesn't affect main lume
+  // ============================================================
+  const fireworks = [];               // active firework entities (rockets and sparks)
+  let fireworkShowQueue = [];         // scheduled upcoming shots: [{atMs, hue}, ...]
+  const FW_PALETTE_HUES = [40, 160, 320, 280, 0, 120, 200];   // amber, teal, magenta, violet, red, green, blue
 
   // ============================================================
   // Utilities
@@ -522,6 +530,298 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       const mag = rand(3.5, 5.5);
       p.vx += (dx / d) * mag + rand(-0.5, 0.5);
       p.vy += (dy / d) * mag + rand(-0.5, 0.5);
+    }
+  }
+
+  // ============================================================
+  // Fireworks: rocket rises, explodes into colored sparks
+  // ============================================================
+  function launchFirework(hue) {
+    // Rocket starts at bottom, random X, shoots upward
+    const startX = rand(W * 0.2, W * 0.8);
+    const startY = H + 10;
+    const targetY = rand(H * 0.15, H * 0.4);   // explode in upper portion
+    const rocket = {
+      kind: 'rocket',
+      x: startX, y: startY,
+      vx: rand(-0.3, 0.3),
+      vy: -rand(5.5, 7.0),             // strong upward velocity
+      hue,
+      trail: [],                        // recent positions for drawing trail
+      targetY,
+      ageMs: 0,
+    };
+    fireworks.push(rocket);
+  }
+
+  function explodeFirework(rocket) {
+    // Multi-layered explosion (peony-style fireworks):
+    //  - Flash: instant white burst at center (lasts ~150ms)
+    //  - Lingering center: slow, long-lived sparks that stay near origin
+    //  - Inner core: bright white/yellow, fast small burst
+    //  - Middle ring: base hue, medium speed, dense
+    //  - Outer ring: base hue darker, slower, long trails
+    //  - Accent sparks: complementary hue, few but bright
+
+    const baseHue = rocket.hue;
+    const accentHue = (baseHue + 180) % 360;   // complementary color
+
+    // Flash — single bright burst at center, fades fast
+    fireworks.push({
+      kind: 'flash',
+      x: rocket.x, y: rocket.y,
+      vx: 0, vy: 0,
+      hue: baseHue,
+      saturation: 20,
+      lightness: 95,
+      trail: [],
+      ageMs: 0,
+      lifespanMs: 220,
+      baseSize: 25,
+    });
+
+    // Lingering center sparks — slow, long-lived, hover near origin
+    const lingerCount = 8;
+    for (let i = 0; i < lingerCount; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = rand(0.3, 1.2);          // very slow
+      fireworks.push({
+        kind: 'spark',
+        x: rocket.x, y: rocket.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 0.2,
+        hue: baseHue,
+        saturation: 40,
+        lightness: 85,                        // bright
+        trail: [],
+        ageMs: 0,
+        lifespanMs: rand(2000, 3000),         // longer than others
+      });
+    }
+
+    // Inner core — bright, fast, hot white-yellow
+    const coreCount = 15;
+    for (let i = 0; i < coreCount; i++) {
+      const angle = (i / coreCount) * Math.PI * 2 + rand(-0.15, 0.15);
+      const speed = rand(5.0, 6.5);
+      fireworks.push({
+        kind: 'spark',
+        x: rocket.x, y: rocket.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 0.3,
+        hue: baseHue,
+        saturation: 30,           // low saturation = closer to white
+        lightness: 90,            // very bright
+        trail: [],
+        ageMs: 0,
+        lifespanMs: rand(900, 1400),
+      });
+    }
+
+    // Middle ring — base hue, medium density
+    const midCount = 35;
+    for (let i = 0; i < midCount; i++) {
+      const angle = (i / midCount) * Math.PI * 2 + rand(-0.1, 0.1);
+      const speed = rand(3.5, 4.8);
+      fireworks.push({
+        kind: 'spark',
+        x: rocket.x, y: rocket.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 0.4,
+        hue: baseHue,
+        saturation: 85,
+        lightness: 70,
+        trail: [],
+        ageMs: 0,
+        lifespanMs: rand(1400, 2000),
+      });
+    }
+
+    // Outer ring — slower, longer trails, slightly desaturated
+    const outerCount = 40;
+    for (let i = 0; i < outerCount; i++) {
+      const angle = (i / outerCount) * Math.PI * 2 + rand(-0.08, 0.08);
+      const speed = rand(2.2, 3.2);
+      fireworks.push({
+        kind: 'spark',
+        x: rocket.x, y: rocket.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 0.5,    // longer upward bias for better trails
+        hue: baseHue,
+        saturation: 75,
+        lightness: 55,
+        trail: [],
+        ageMs: 0,
+        lifespanMs: rand(1800, 2600),
+      });
+    }
+
+    // Accent sparks — complementary color, few but eye-catching
+    const accentCount = 12;
+    for (let i = 0; i < accentCount; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = rand(2.8, 4.2);
+      fireworks.push({
+        kind: 'spark',
+        x: rocket.x, y: rocket.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 0.4,
+        hue: accentHue,
+        saturation: 80,
+        lightness: 68,
+        trail: [],
+        ageMs: 0,
+        lifespanMs: rand(1200, 1800),
+      });
+    }
+  }
+
+  function updateFireworks(dt) {
+    // Launch scheduled shows
+    const now = performance.now();
+    while (fireworkShowQueue.length > 0 && fireworkShowQueue[0].atMs <= now) {
+      const shot = fireworkShowQueue.shift();
+      launchFirework(shot.hue);
+    }
+
+    for (let i = fireworks.length - 1; i >= 0; i--) {
+      const f = fireworks[i];
+      f.ageMs += dt;
+
+      // Record trail (last 6 positions)
+      f.trail.push({ x: f.x, y: f.y });
+      if (f.trail.length > 6) f.trail.shift();
+
+      if (f.kind === 'rocket') {
+        // Physics: upward with slight gravity
+        f.vy += 0.05 * dt * 0.016;      // light gravity pulls down
+        f.x += f.vx * dt * 0.06;
+        f.y += f.vy * dt * 0.06;
+        // Explode when reaching target altitude or velocity reversed
+        if (f.y <= f.targetY || f.vy > 0) {
+          explodeFirework(f);
+          fireworks.splice(i, 1);
+        }
+      } else if (f.kind === 'flash') {
+        // Flash stays in place, just ages out
+        if (f.ageMs >= f.lifespanMs) {
+          fireworks.splice(i, 1);
+        }
+      } else if (f.kind === 'spark') {
+        // Physics: gravity + slight air drag
+        f.vy += 0.12 * dt * 0.016;
+        f.vx *= 0.98;
+        f.vy *= 0.98;
+        f.x += f.vx * dt * 0.06;
+        f.y += f.vy * dt * 0.06;
+        // Remove when aged out
+        if (f.ageMs >= f.lifespanMs) {
+          fireworks.splice(i, 1);
+        }
+      }
+    }
+  }
+
+  function renderFireworks() {
+    for (const f of fireworks) {
+      let alpha = 1;
+      let r = 1.5;
+
+      if (f.kind === 'flash') {
+        // Flash: brief bright burst at center, shrinking and fading fast
+        const t = f.ageMs / f.lifespanMs;    // 0 to 1
+        alpha = Math.max(0, 1 - t);
+        const size = f.baseSize * (1 - t * 0.4);
+
+        // Soft radial gradient glow (neon-like, no hard edges)
+        const grad = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, size * 2.2);
+        grad.addColorStop(0, `hsla(${f.hue}, 30%, 95%, ${alpha * 0.9})`);
+        grad.addColorStop(0.3, `hsla(${f.hue}, 50%, 75%, ${alpha * 0.45})`);
+        grad.addColorStop(1, `hsla(${f.hue}, 60%, 50%, 0)`);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, size * 2.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Bright white core
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, size * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+        continue;
+      }
+
+      if (f.kind === 'rocket') {
+        // Bright ascending rocket
+        alpha = 1;
+        r = 1.8;
+      } else {
+        // Spark fading out with age
+        alpha = Math.max(0, 1 - f.ageMs / f.lifespanMs);
+        // Size shrinks slightly
+        r = 1.4 * (0.6 + 0.4 * alpha);
+      }
+
+      // Use per-spark saturation/lightness if defined (multi-layer fireworks)
+      const sat = f.saturation != null ? f.saturation : 80;
+      const light = f.lightness != null ? f.lightness : 60;
+      const glowColor = `hsl(${f.hue}, ${sat}%, ${Math.max(40, light - 15)}%)`;
+      const coreColor = `hsl(${f.hue}, ${sat}%, ${Math.min(95, light + 10)}%)`;
+
+      // Trail (fading tail)
+      for (let i = 0; i < f.trail.length - 1; i++) {
+        const t = f.trail[i];
+        const trailAlpha = alpha * (i / f.trail.length) * 0.6;
+        ctx.globalAlpha = trailAlpha;
+        ctx.fillStyle = glowColor;
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, r * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Glow halo
+      ctx.globalAlpha = alpha * 0.4;
+      ctx.fillStyle = glowColor;
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, r * 3.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Core
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = coreColor;
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, r, 0, Math.PI * 2);
+      ctx.fill();
+
+      // White sparkle center (only for bright layers)
+      if (light >= 65) {
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, r * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function triggerFireworkShow() {
+    // Pick 4 distinct hues randomly from palette
+    const palette = FW_PALETTE_HUES.slice();
+    // Shuffle
+    for (let i = palette.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [palette[i], palette[j]] = [palette[j], palette[i]];
+    }
+    const hues = palette.slice(0, 4);
+
+    // Schedule 4 shots with overlapping timing
+    const now = performance.now();
+    const delays = [0, 1800, 3400, 5000];   // total ~5-7 seconds
+    for (let i = 0; i < 4; i++) {
+      fireworkShowQueue.push({ atMs: now + delays[i], hue: hues[i] });
     }
   }
 
@@ -760,6 +1060,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     // Mouse idle tracker
     if (mousePos) mouseIdleMs += dt;
+
+    // Fireworks (independent of main particle system)
+    updateFireworks(dt);
 
     // Hue shift cooldown (spontaneous color change)
     hueShiftCdMs -= dt;
@@ -1075,6 +1378,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       ctx.fill();
     }
     ctx.globalAlpha = 1;
+
+    // Fireworks layer (rendered on top of main particles)
+    renderFireworks();
   }
 
   // ============================================================
@@ -1159,6 +1465,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
   document.getElementById('btn-text').addEventListener('click',   () => {
     const text = window.prompt(currentLangPrompt(), '');
     if (text && text.trim()) startFormation('text', text.trim());
+  });
+  document.getElementById('btn-fireworks').addEventListener('click', () => {
+    triggerFireworkShow();
   });
   function currentLangPrompt() {
     // Very simple bilingual prompt — no full i18n system here yet
