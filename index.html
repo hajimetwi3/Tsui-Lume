@@ -1,0 +1,1241 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<!-- Clickjacking defense (frame-busting) — 多層防御: CSPのframe-ancestorsと併用 -->
+<style id="antiClickjack">html{display:none !important;}</style>
+<script>
+  (function(){
+    if (self === top) {
+      var s = document.getElementById('antiClickjack');
+      if (s && s.parentNode) s.parentNode.removeChild(s);
+    } else {
+      try { top.location = self.location; } catch (e) {}
+      try { document.documentElement.innerHTML = ''; } catch (e) {}
+    }
+  })();
+</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'none';
+  script-src 'unsafe-inline';
+  style-src 'unsafe-inline';
+  img-src 'self' data:;
+  connect-src 'none';
+  frame-ancestors 'none';
+  base-uri 'none';
+  form-action 'none';
+">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Tsui Lume — 深い闇に漂う、光の粒。ブラウザで完結、外部通信なし。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23000'/%3E%3Ccircle cx='16' cy='16' r='2' fill='%23b28fd0'/%3E%3Ccircle cx='8' cy='10' r='1.2' fill='%237dd3c0'/%3E%3Ccircle cx='23' cy='9' r='1' fill='%23e8d4a0'/%3E%3Ccircle cx='10' cy='22' r='0.9' fill='%23e8b842'/%3E%3Ccircle cx='24' cy='23' r='1.3' fill='%236b7ddb'/%3E%3C/svg%3E">
+<title>Tsui Lume</title>
+
+<style>
+  :root {
+    --bg: #000;
+    --fg: #cfd6e6;
+    --fg-faint: #6c7285;
+    --border: #1b2238;
+    --hue-current: 160;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 12px;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .app {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* Canvas fills the entire space */
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    flex: 1;
+  }
+
+  /* Minimal controls — shown on hover only */
+  .controls {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 6px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-family: ui-monospace, monospace;
+    font-size: 14px;
+    z-index: 10;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: calc(100% - 16px);
+  }
+  .app:hover .controls { opacity: 0.7; }
+  .controls:hover { opacity: 1 !important; }
+
+  .controls button {
+    background: rgba(0, 0, 0, 0.6);
+    color: var(--fg-faint);
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    min-width: 40px;
+    min-height: 40px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    transition: color 0.15s, border-color 0.15s;
+    backdrop-filter: blur(4px);
+  }
+  .controls button:hover {
+    color: var(--fg);
+    border-color: var(--fg-faint);
+  }
+  .controls button.active {
+    color: hsl(var(--hue-current), 70%, 65%);
+    border-color: hsl(var(--hue-current), 70%, 45%);
+  }
+
+  /* Mobile / touch: show controls always (no hover) */
+  @media (hover: none), (pointer: coarse) {
+    .controls { opacity: 0.7; }
+    .app:hover .controls { opacity: 0.7; }
+  }
+
+  /* Title: shown only on first load or via option */
+  .title {
+    position: absolute;
+    bottom: 8px;
+    left: 12px;
+    color: var(--fg-faint);
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    opacity: 0;
+    transition: opacity 0.5s;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .app:hover .title { opacity: 0.5; }
+
+  /* About modal */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+    overflow-y: auto;
+  }
+  .modal-backdrop.open {
+    display: flex;
+  }
+  .modal {
+    background: #0b0e1c;
+    border: 1px solid var(--border);
+    max-width: 520px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 28px 32px;
+    position: relative;
+    color: var(--fg);
+    font-size: 13px;
+    line-height: 1.65;
+  }
+  .modal h2 {
+    font-size: 18px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    margin-bottom: 2px;
+  }
+  .modal h3 {
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: normal;
+    letter-spacing: 0.15em;
+    color: var(--fg-faint);
+    text-transform: uppercase;
+    margin-top: 18px;
+    margin-bottom: 6px;
+  }
+  .modal p {
+    font-size: 12.5px;
+    color: var(--fg);
+    margin-bottom: 8px;
+  }
+  .modal .modal-version {
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--fg-faint);
+    margin-bottom: 16px;
+    letter-spacing: 0.05em;
+  }
+  .modal .modal-hint {
+    color: var(--fg-faint);
+    font-size: 11.5px;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    margin-top: 12px;
+  }
+  .modal pre {
+    font-family: ui-monospace, monospace;
+    font-size: 10.5px;
+    color: var(--fg-faint);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    padding: 10px 12px;
+    border-radius: 2px;
+  }
+  .modal a {
+    color: hsl(var(--hue-current), 70%, 65%);
+    text-decoration: none;
+    border-bottom: 1px dotted;
+    transition: opacity 0.15s;
+  }
+  .modal a:hover { opacity: 0.7; }
+  .modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: transparent;
+    color: var(--fg-faint);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    cursor: pointer;
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .modal-close:hover {
+    color: var(--fg);
+    border-color: var(--fg-faint);
+  }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <canvas id="canvas"></canvas>
+  <div class="controls">
+    <button type="button" id="btn-pause" title="停止/再生">❚❚</button>
+    <button type="button" id="btn-spawn" title="増やす (+10)">✦</button>
+    <button type="button" id="btn-spawn-max" title="最大まで増やす">✦✦</button>
+    <button type="button" id="btn-shift" title="色を変える">↻</button>
+    <button type="button" id="btn-circle" title="円">◯</button>
+    <button type="button" id="btn-heart"  title="ハート">♥</button>
+    <button type="button" id="btn-star"   title="星">★</button>
+    <button type="button" id="btn-text"   title="文字">T</button>
+    <button type="button" id="btn-about"  title="About">?</button>
+  </div>
+  <div class="title">tsui-lume</div>
+</div>
+
+<!-- About modal -->
+<div class="modal-backdrop" id="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal" id="modal">
+    <button class="modal-close" id="modal-close" aria-label="閉じる">Close</button>
+    <h2 id="modal-title">Tsui Lume</h2>
+    <p class="modal-version">Version 0.1</p>
+
+    <h3>About</h3>
+    <p>深い闇に漂う、光の粒。気まぐれに集まり、弾け、回り、時々文字や形に並ぶ。</p>
+    <p>デスクトップの端に置いておく用途として設計。実用性を考えない、Tsui~ シリーズの道具です。</p>
+    <p class="modal-hint">
+      画面上にマウスを乗せると右上にコントロールが現れます。<br>
+      ❚❚ 停止 &nbsp; ✦ 粒を増やす(+10) &nbsp; ✦✦ 最大まで &nbsp; ↻ 色変更<br>
+      ◯♥★ 形に並ぶ &nbsp; T 文字に並ぶ<br>
+      画面クリックで粒がそちらに動きます。
+    </p>
+
+    <h3>Privacy</h3>
+    <p>外部へのデータ送信は一切ありません。入力した文字列も含め、データが端末の外に出ることはありません。</p>
+    <p>ブラウザ内 localStorage に保存するのは、色相・停止状態・バージョン番号・保存時刻のみです。粒子の位置や数などは保存されません（開くたびに新しい状態から始まります）。</p>
+
+    <h3>Disclaimer</h3>
+    <p>本アプリは現状有姿で提供され、動作の正確性・可用性について一切の保証はありません。ご利用は自己責任にてお願いします。</p>
+
+    <h3>License</h3>
+    <pre>MIT License
+
+Copyright (c) 2026 <a href="https://hajimetwi3.github.io/hajimetwi3/" target="_blank" rel="noopener noreferrer">Hajime Tsui</a>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</pre>
+
+    <h3>Third-Party</h3>
+    <p>外部ライブラリ・外部フォント・外部リソースへの依存はありません（システムフォントのみ使用）。</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  // ============================================================
+  // Constants
+  // ============================================================
+  const SAVE_KEY = 'tsui-lume-v0-1';
+  const COUNT_MIN = 4;
+  const COUNT_MAX = 1000;
+  const REPULSION_DIST = 7;         // minimum visible separation (so particles don't merge)
+
+  // ============================================================
+  // State
+  // ============================================================
+  let W = 400, H = 300;              // updated on resize
+  let particles = [];
+  let running = true;
+  let lastLoopT = 0;
+  let hueCurrent = 160;              // current color hue (0-360)
+  let hueTarget = 160;                // target hue for smooth transitions
+  let hueShiftCdMs = 0;               // cooldown until next spontaneous color shift
+  let moodTimerMs = 0;                // timer for mood changes (cluster/disperse)
+  let moodDurationMs = 0;
+  let mood = 'drift';                 // 'drift' | 'cluster' | 'disperse' | 'burst' | 'formation' | 'orbit' | 'wave' | 'follow' | 'breathe' | 'pulse' | 'radial' | 'gravity'
+  let lastBirthMs = 0;                // timer for birth/death cycles
+  let nextBirthInMs = 0;
+  let msSinceExcitingEvent = 0;       // for idle-bonus: triggers a fun mood if nothing exciting happened
+  let leaderId = 0;                   // for 'follow' mood
+  let waveDirection = 'horizontal';   // 'horizontal' | 'vertical' for wave mood
+  let orbitDirection = 1;             // +1 or -1 for orbit spin direction
+  let gravityWell = null;             // {x, y} for gravity well mood
+  let breathePhase = 0;               // oscillation phase for breathe mood
+  let mousePos = null;                // {x, y} for mouse awareness
+  let mouseIdleMs = 0;                // ms since last mouse movement near canvas
+
+  // ============================================================
+  // Utilities
+  // ============================================================
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+  // ============================================================
+  // Canvas & resize
+  // ============================================================
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+
+  function fitCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    W = rect.width;
+    H = rect.height;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', fitCanvas);
+
+  // ============================================================
+  // Particles
+  // ============================================================
+  let nextParticleId = 1;
+
+  function spawnParticle(opts) {
+    opts = opts || {};
+    return {
+      id: nextParticleId++,
+      x: opts.x != null ? opts.x : rand(W * 0.2, W * 0.8),
+      y: opts.y != null ? opts.y : rand(H * 0.2, H * 0.8),
+      vx: rand(-0.3, 0.3),
+      vy: rand(-0.3, 0.3),
+      size: 0.9,                      // fixed small size for all particles
+      lifePhase: 0,                   // 0=new (fading in), 1=stable, 2=fading out
+      phaseMs: 0,                     // ms in current phase
+      target: null,                   // formation target point (null when not in formation mode)
+    };
+  }
+
+  function seedParticles() {
+    const n = Math.floor(rand(8, 14));
+    for (let i = 0; i < n; i++) {
+      const p = spawnParticle();
+      p.lifePhase = 1;
+      particles.push(p);
+    }
+  }
+
+  // ============================================================
+  // Mood system — cycles between drift / cluster / disperse / burst
+  // burst is a special short-lived mood triggered after a dense cluster
+  // ============================================================
+  function pickMood() {
+    // Weighted distribution — drift most common, variety of rare behaviors
+    const r = Math.random();
+    let acc = 0;
+    const weights = [
+      ['drift',    40],
+      ['cluster',  15],
+      ['disperse', 10],
+      ['orbit',     8],
+      ['follow',    7],
+      ['wave',      6],
+      ['breathe',   5],
+      ['pulse',     4],
+      ['radial',    3],
+      ['gravity',   2],
+    ];
+    const total = weights.reduce((s, [_, w]) => s + w, 0);
+    const pickVal = r * total;
+    let c = 0;
+    for (const [name, w] of weights) {
+      c += w;
+      if (pickVal < c) return name;
+    }
+    return 'drift';
+  }
+
+  // Compute spread (average distance from centroid) — used to detect tight clusters
+  function computeSpread() {
+    if (particles.length < 2) return Infinity;
+    let cx = 0, cy = 0, n = 0;
+    for (const p of particles) { cx += p.x; cy += p.y; n++; }
+    cx /= n; cy /= n;
+    let sum = 0;
+    for (const p of particles) {
+      sum += Math.hypot(p.x - cx, p.y - cy);
+    }
+    return sum / n;
+  }
+
+  let postFormationSoftMs = 0;        // soft-drift timer after formation (reduces wander/speed)
+
+  function newMoodCycle() {
+    // After formation, calm drift — with a "soft" period where forces are muted
+    if (mood === 'formation') {
+      // Clear targets
+      for (const p of particles) p.target = null;
+      mood = 'drift';
+      moodDurationMs = rand(8000, 16000);
+      moodTimerMs = 0;
+      postFormationSoftMs = 2500;   // 2.5 seconds of gentle drift after formation
+      return;
+    }
+    // If the previous mood was a dense cluster, trigger a burst instead
+    if (mood === 'cluster' && particles.length >= 5) {
+      const spread = computeSpread();
+      // Tight cluster: average spread less than 1/6 of min dimension
+      if (spread < Math.min(W, H) / 6) {
+        mood = 'burst';
+        moodDurationMs = rand(2500, 4000);
+        moodTimerMs = 0;
+        triggerBurst();
+        msSinceExcitingEvent = 0;
+        return;
+      }
+    }
+    // After a burst, always go to drift for a calm breath
+    if (mood === 'burst') {
+      mood = 'drift';
+      moodDurationMs = rand(8000, 16000);
+      moodTimerMs = 0;
+      return;
+    }
+
+    // Regular mood selection
+    mood = pickMood();
+    moodDurationMs = rand(12000, 28000);   // each mood lasts 12-28 seconds
+    moodTimerMs = 0;
+
+    // Per-mood initialization
+    if (mood === 'orbit') {
+      orbitDirection = Math.random() < 0.5 ? 1 : -1;
+      moodDurationMs = rand(15000, 25000);   // longer for orbit
+      msSinceExcitingEvent = 0;
+    } else if (mood === 'wave') {
+      waveDirection = Math.random() < 0.5 ? 'horizontal' : 'vertical';
+      msSinceExcitingEvent = 0;
+    } else if (mood === 'follow') {
+      // Pick a random particle as leader
+      const live = particles.filter(p => p.lifePhase < 2);
+      if (live.length > 0) {
+        leaderId = live[Math.floor(Math.random() * live.length)].id;
+        msSinceExcitingEvent = 0;
+      } else {
+        mood = 'drift';
+      }
+    } else if (mood === 'breathe') {
+      breathePhase = 0;
+      moodDurationMs = rand(15000, 22000);
+      msSinceExcitingEvent = 0;
+    } else if (mood === 'pulse') {
+      msSinceExcitingEvent = 0;
+    } else if (mood === 'radial') {
+      moodDurationMs = rand(4000, 7000);   // shorter, dramatic
+      msSinceExcitingEvent = 0;
+    } else if (mood === 'gravity') {
+      // Place a gravity well somewhere interesting
+      gravityWell = {
+        x: rand(W * 0.25, W * 0.75),
+        y: rand(H * 0.25, H * 0.75),
+      };
+      moodDurationMs = rand(6000, 10000);
+      msSinceExcitingEvent = 0;
+    } else if (mood === 'cluster' || mood === 'disperse') {
+      msSinceExcitingEvent = 0;
+    }
+    // drift doesn't reset the idle counter
+  }
+
+  // Apply radial outward impulse to all particles from centroid
+  function triggerBurst() {
+    let cx = 0, cy = 0, n = 0;
+    for (const p of particles) { cx += p.x; cy += p.y; n++; }
+    if (n === 0) return;
+    cx /= n; cy /= n;
+    for (const p of particles) {
+      const dx = p.x - cx, dy = p.y - cy;
+      const d = Math.hypot(dx, dy) || 1;
+      // Strong outward impulse, with some randomness
+      const mag = rand(3.5, 5.5);
+      p.vx += (dx / d) * mag + rand(-0.5, 0.5);
+      p.vy += (dy / d) * mag + rand(-0.5, 0.5);
+    }
+  }
+
+  // ============================================================
+  // Formation mode — assign each particle a target point in a shape
+  // ============================================================
+  let formationMs = 0;                  // remaining formation time
+  const FORMATION_DURATION = 15000;     // 15 seconds: ~4s travel, ~11s hold
+
+  function generateCirclePoints(count, cx, cy, radius) {
+    const pts = [];
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2;
+      pts.push({ x: cx + Math.cos(a) * radius, y: cy + Math.sin(a) * radius });
+    }
+    return pts;
+  }
+
+  function generateHeartPoints(count, cx, cy, scale) {
+    // Heart parametric curve
+    const pts = [];
+    for (let i = 0; i < count; i++) {
+      const t = (i / count) * Math.PI * 2;
+      const x = 16 * Math.pow(Math.sin(t), 3);
+      const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+      pts.push({ x: cx + x * scale, y: cy - y * scale });   // flip Y
+    }
+    return pts;
+  }
+
+  function generateStarPoints(count, cx, cy, outerR) {
+    // 5-pointed star: alternate outer/inner points, interpolate between them
+    const points = 5;
+    const innerR = outerR * 0.4;
+    const vertices = [];
+    for (let i = 0; i < points * 2; i++) {
+      const a = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2;
+      const r = (i % 2 === 0) ? outerR : innerR;
+      vertices.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r });
+    }
+    // Distribute count points along the polygon edges
+    const pts = [];
+    const edges = vertices.length;
+    const perEdge = Math.ceil(count / edges);
+    for (let e = 0; e < edges; e++) {
+      const v0 = vertices[e];
+      const v1 = vertices[(e + 1) % edges];
+      for (let j = 0; j < perEdge; j++) {
+        const t = j / perEdge;
+        pts.push({ x: v0.x + (v1.x - v0.x) * t, y: v0.y + (v1.y - v0.y) * t });
+      }
+    }
+    return pts.slice(0, count);
+  }
+
+  // Render text to an offscreen canvas, sample bright pixels as points
+  function generateTextPoints(text, cx, cy, maxWidth, maxHeight) {
+    if (!text) return [];
+    // Sanitize: cap length
+    const safe = String(text).slice(0, 20);
+
+    // Offscreen canvas sized to the display area
+    const off = document.createElement('canvas');
+    const targetW = Math.floor(maxWidth);
+    const targetH = Math.floor(maxHeight);
+    off.width = targetW;
+    off.height = targetH;
+    const octx = off.getContext('2d');
+
+    // Pick a font size that fits
+    let fontSize = Math.floor(targetH * 0.9);
+    octx.font = `bold ${fontSize}px ui-sans-serif, system-ui, sans-serif`;
+    let metrics = octx.measureText(safe);
+    while (metrics.width > targetW * 0.95 && fontSize > 12) {
+      fontSize -= 2;
+      octx.font = `bold ${fontSize}px ui-sans-serif, system-ui, sans-serif`;
+      metrics = octx.measureText(safe);
+    }
+    // Draw STROKE (outline) rather than fill — keeps sample count manageable
+    // and emphasizes the letter shape
+    octx.fillStyle = '#000';
+    octx.fillRect(0, 0, targetW, targetH);
+    octx.strokeStyle = '#fff';
+    octx.lineWidth = Math.max(2, Math.floor(fontSize / 30));
+    octx.lineJoin = 'round';
+    octx.lineCap = 'round';
+    octx.textAlign = 'center';
+    octx.textBaseline = 'middle';
+    octx.strokeText(safe, targetW / 2, targetH / 2);
+
+    // Sample pixels with wider stride — outline is thin, and we want fewer points
+    const img = octx.getImageData(0, 0, targetW, targetH);
+    const data = img.data;
+    const brightPx = [];
+    const step = 3;
+    for (let y = 0; y < targetH; y += step) {
+      for (let x = 0; x < targetW; x += step) {
+        const i = (y * targetW + x) * 4;
+        if (data[i] > 128) {
+          brightPx.push({ x: x + (cx - targetW / 2), y: y + (cy - targetH / 2) });
+        }
+      }
+    }
+    // Shuffle to break up raster-scan order, so stride-sampling covers the whole shape
+    for (let i = brightPx.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [brightPx[i], brightPx[j]] = [brightPx[j], brightPx[i]];
+    }
+    return brightPx;
+  }
+
+  // Assign target points to particles.
+  // Strategy: TARGET-first greedy — each target picks its nearest unassigned particle.
+  // This ensures every target point gets filled (important for text readability),
+  // even if particles are spatially clustered when the formation is triggered.
+  function assignTargets(pts) {
+    const livePs = particles.filter(p => p.lifePhase < 2);
+    // Clear any existing targets
+    for (const p of particles) p.target = null;
+
+    const unassigned = livePs.slice();
+    // First pass: each target finds its nearest unassigned particle
+    for (const t of pts) {
+      if (unassigned.length === 0) break;
+      let bestIdx = 0, bestD = Infinity;
+      for (let i = 0; i < unassigned.length; i++) {
+        const d = (unassigned[i].x - t.x) ** 2 + (unassigned[i].y - t.y) ** 2;
+        if (d < bestD) { bestD = d; bestIdx = i; }
+      }
+      unassigned[bestIdx].target = { x: t.x, y: t.y };
+      unassigned.splice(bestIdx, 1);
+    }
+    // Remaining particles (when particle count > target count):
+    // distribute to existing points so they stay with the shape (repulsion will spread them)
+    if (unassigned.length > 0 && pts.length > 0) {
+      for (let i = 0; i < unassigned.length; i++) {
+        const t = pts[i % pts.length];
+        unassigned[i].target = { x: t.x, y: t.y };
+      }
+    }
+  }
+
+  function startFormation(kind, extra) {
+    const cx = W / 2, cy = H / 2;
+    const size = Math.min(W, H) * 0.32;
+    let pts;
+    if (kind === 'circle') pts = generateCirclePoints(Math.max(12, particles.length), cx, cy, size);
+    else if (kind === 'heart') pts = generateHeartPoints(Math.max(16, particles.length), cx, cy, size / 16);
+    else if (kind === 'star') pts = generateStarPoints(Math.max(16, particles.length), cx, cy, size);
+    else if (kind === 'text') {
+      pts = generateTextPoints(extra, cx, cy, W * 0.85, H * 0.7);
+      if (pts.length === 0) return;
+      // Downsample so we never have more targets than particles (avoids gaps).
+      // Use stride-based (evenly-spaced) sampling — this ensures sparse particles
+      // still cover the entire letter shape, just at lower density.
+      const liveCount = particles.filter(p => p.lifePhase < 2).length;
+      const target = Math.max(30, Math.floor(liveCount * 0.95));
+      if (pts.length > target) {
+        const kept = [];
+        const stride = pts.length / target;
+        for (let i = 0; i < target; i++) {
+          kept.push(pts[Math.floor(i * stride)]);
+        }
+        pts = kept;
+      }
+    }
+    else return;
+    assignTargets(pts);
+    mood = 'formation';
+    formationMs = FORMATION_DURATION;
+    moodTimerMs = 0;
+    moodDurationMs = FORMATION_DURATION;
+  }
+
+  // ============================================================
+  // Color shift (hue)
+  // ============================================================
+  // Palette of pleasant hues: teal, blue, violet, magenta, amber, green.
+  const PALETTE_HUES = [160, 200, 230, 280, 320, 40, 120];
+
+  function scheduleNextHueShift() {
+    hueShiftCdMs = rand(60000, 180000);    // 1-3 minutes
+  }
+
+  function shiftHue() {
+    const current = hueCurrent;
+    let next;
+    do { next = pick(PALETTE_HUES); } while (Math.abs(next - current) < 20 && PALETTE_HUES.length > 1);
+    hueTarget = next;
+  }
+
+  function updateHue(dt) {
+    if (Math.abs(hueCurrent - hueTarget) < 0.5) {
+      hueCurrent = hueTarget;
+    } else {
+      // smooth interpolation, handling wrap-around (shortest path)
+      let diff = hueTarget - hueCurrent;
+      if (diff > 180) diff -= 360;
+      if (diff < -180) diff += 360;
+      hueCurrent += diff * Math.min(1, dt / 3000);
+      hueCurrent = (hueCurrent + 360) % 360;
+    }
+    document.documentElement.style.setProperty('--hue-current', String(Math.round(hueCurrent)));
+  }
+
+  // ============================================================
+  // Simulation tick
+  // ============================================================
+  function update(dt) {
+    // Mood cycling
+    moodTimerMs += dt;
+    if (moodTimerMs >= moodDurationMs) newMoodCycle();
+    if (postFormationSoftMs > 0) postFormationSoftMs -= dt;
+
+    // Idle bonus: if nothing exciting has happened for a while during drift,
+    // force an interesting mood to keep the mascot lively
+    msSinceExcitingEvent += dt;
+    if (mood === 'drift' && msSinceExcitingEvent > 45000) {
+      // Force an exciting mood (not drift/cluster/disperse which are calm)
+      const excitingMoods = ['orbit', 'follow', 'wave', 'breathe', 'pulse', 'radial', 'gravity'];
+      mood = excitingMoods[Math.floor(Math.random() * excitingMoods.length)];
+      moodTimerMs = 0;
+      moodDurationMs = rand(12000, 20000);
+      msSinceExcitingEvent = 0;
+      // Initialize mood-specific state
+      if (mood === 'orbit') orbitDirection = Math.random() < 0.5 ? 1 : -1;
+      else if (mood === 'wave') waveDirection = Math.random() < 0.5 ? 'horizontal' : 'vertical';
+      else if (mood === 'follow') {
+        const live = particles.filter(p => p.lifePhase < 2);
+        if (live.length > 0) leaderId = live[Math.floor(Math.random() * live.length)].id;
+        else mood = 'drift';
+      } else if (mood === 'gravity') {
+        gravityWell = { x: rand(W * 0.25, W * 0.75), y: rand(H * 0.25, H * 0.75) };
+      }
+    }
+
+    // Mouse idle tracker
+    if (mousePos) mouseIdleMs += dt;
+
+    // Hue shift cooldown (spontaneous color change)
+    hueShiftCdMs -= dt;
+    if (hueShiftCdMs <= 0) {
+      shiftHue();
+      scheduleNextHueShift();
+    }
+    updateHue(dt);
+
+    // Time-of-day base hue influence (gentle, applied as target modulation)
+    // morning: 200 (cool blue), noon: 160 (teal), evening: 320 (magenta), night: 280 (violet)
+    const hour = new Date().getHours();
+    let dayHue;
+    if (hour < 6) dayHue = 280;           // late night
+    else if (hour < 10) dayHue = 200;     // morning
+    else if (hour < 16) dayHue = 160;     // day
+    else if (hour < 20) dayHue = 40;      // evening (warm)
+    else dayHue = 280;                    // night
+
+    // Slow drift toward dayHue — very weak influence, just a nudge
+    // (we don't overwrite explicit palette shifts)
+    // Currently disabled — palette picks already cover the spectrum.
+    // Could be enabled as optional feature later.
+
+    // Birth/death cycle
+    lastBirthMs += dt;
+    if (lastBirthMs >= nextBirthInMs) {
+      lastBirthMs = 0;
+      nextBirthInMs = rand(3000, 12000);
+      // Randomly add or remove, keeping within [MIN, MAX]
+      const alive = particles.filter(p => p.lifePhase < 2).length;
+      const action = Math.random() < 0.5 ? 'birth' : 'death';
+      if (action === 'birth' && alive < COUNT_MAX) {
+        const p = spawnParticle();
+        particles.push(p);
+      } else if (action === 'death' && alive > COUNT_MIN) {
+        // Pick one to start fading out
+        const candidates = particles.filter(p => p.lifePhase === 1);
+        if (candidates.length > 0) {
+          const victim = candidates[Math.floor(Math.random() * candidates.length)];
+          victim.lifePhase = 2;
+          victim.phaseMs = 0;
+        }
+      }
+    }
+
+    // Update each particle
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.phaseMs += dt;
+
+      // Phase transitions
+      if (p.lifePhase === 0 && p.phaseMs >= 2500) {
+        p.lifePhase = 1;
+        p.phaseMs = 0;
+      } else if (p.lifePhase === 2 && p.phaseMs >= 2500) {
+        particles.splice(i, 1);
+        continue;
+      }
+
+      // Forces
+      let fx = 0, fy = 0;
+
+      // Wander (reduced during post-formation softness for gentle fade)
+      const wanderMul = postFormationSoftMs > 0 ? 0.3 : 1.0;
+      fx += (Math.random() - 0.5) * 0.06 * wanderMul;
+      fy += (Math.random() - 0.5) * 0.06 * wanderMul;
+
+      // Mood-based group force (not during burst — burst is inertia-driven)
+      if (mood === 'cluster' || mood === 'disperse') {
+        // Compute centroid of other particles
+        let cx = 0, cy = 0, n = 0;
+        for (const q of particles) {
+          if (q === p) continue;
+          cx += q.x; cy += q.y; n++;
+        }
+        if (n > 0) {
+          cx /= n; cy /= n;
+          const dx = cx - p.x, dy = cy - p.y;
+          const d = Math.hypot(dx, dy) || 1;
+          const sign = mood === 'cluster' ? 1 : -1;
+          const strength = mood === 'cluster' ? 0.08 : 0.04;
+          fx += (dx / d) * sign * strength;
+          fy += (dy / d) * sign * strength;
+        }
+      }
+
+      // Orbit: tangential force around screen center (slow rotation)
+      if (mood === 'orbit') {
+        const cx = W / 2, cy = H / 2;
+        const dx = p.x - cx, dy = p.y - cy;
+        const d = Math.hypot(dx, dy) || 1;
+        // Tangential unit vector (perpendicular to radial)
+        const tx = -dy / d, ty = dx / d;
+        // Apply tangential force
+        fx += tx * orbitDirection * 0.08;
+        fy += ty * orbitDirection * 0.08;
+        // Slight radial pull to keep particles in orbit band (not too tight, not too wide)
+        const idealR = Math.min(W, H) * 0.35;
+        const radialPull = (idealR - d) * 0.0008;
+        fx += (dx / d) * radialPull;
+        fy += (dy / d) * radialPull;
+      }
+
+      // Wave: sinusoidal drift along one axis, phase offset by position
+      if (mood === 'wave') {
+        const t = moodTimerMs / 1000;
+        if (waveDirection === 'horizontal') {
+          // Particles drift in X, with Y-dependent phase
+          fx += Math.sin(t * 1.2 + p.y * 0.015) * 0.15;
+          fy += Math.sin(t * 0.8 + p.x * 0.01) * 0.05;
+        } else {
+          fx += Math.sin(t * 0.8 + p.y * 0.01) * 0.05;
+          fy += Math.sin(t * 1.2 + p.x * 0.015) * 0.15;
+        }
+      }
+
+      // Follow: every particle follows the leader
+      if (mood === 'follow' && leaderId !== p.id) {
+        const leader = particles.find(q => q.id === leaderId && q.lifePhase < 2);
+        if (leader) {
+          const dx = leader.x - p.x, dy = leader.y - p.y;
+          const d = Math.hypot(dx, dy) || 1;
+          // Strong attractor, but less close-range (prevent piling on leader)
+          if (d > 20) {
+            fx += (dx / d) * 0.12;
+            fy += (dy / d) * 0.12;
+          }
+        }
+      }
+      // Leader itself wanders slightly more energetically
+      if (mood === 'follow' && leaderId === p.id) {
+        fx += (Math.random() - 0.5) * 0.4;
+        fy += (Math.random() - 0.5) * 0.4;
+      }
+
+      // Breathe: oscillate between gathering and spreading
+      if (mood === 'breathe') {
+        const t = moodTimerMs / 1000;
+        const phase = Math.sin(t * 0.6);      // period ~10 seconds
+        let cx = 0, cy = 0, n = 0;
+        for (const q of particles) {
+          if (q === p) continue;
+          cx += q.x; cy += q.y; n++;
+        }
+        if (n > 0) {
+          cx /= n; cy /= n;
+          const dx = cx - p.x, dy = cy - p.y;
+          const d = Math.hypot(dx, dy) || 1;
+          fx += (dx / d) * phase * 0.06;
+          fy += (dy / d) * phase * 0.06;
+        }
+      }
+
+      // Pulse: no force change — affects rendering only (see render)
+
+      // Radial: outward flow from center
+      if (mood === 'radial') {
+        const cx = W / 2, cy = H / 2;
+        const dx = p.x - cx, dy = p.y - cy;
+        const d = Math.hypot(dx, dy) || 1;
+        fx += (dx / d) * 0.15;
+        fy += (dy / d) * 0.15;
+      }
+
+      // Gravity well: attraction toward specific point
+      if (mood === 'gravity' && gravityWell) {
+        const dx = gravityWell.x - p.x, dy = gravityWell.y - p.y;
+        const d2 = dx*dx + dy*dy;
+        const d = Math.sqrt(d2) || 1;
+        // Inverse-square-ish pull, capped
+        const pull = Math.min(0.4, 2000 / (d2 + 50));
+        fx += (dx / d) * pull;
+        fy += (dy / d) * pull;
+      }
+
+      // Mouse awareness: particles near the mouse drift toward it gently
+      if (mousePos && mouseIdleMs < 2000) {
+        const dx = mousePos.x - p.x, dy = mousePos.y - p.y;
+        const d2 = dx*dx + dy*dy;
+        if (d2 < 150 * 150) {
+          const d = Math.sqrt(d2) || 1;
+          const str = (1 - d / 150) * 0.08;
+          fx += (dx / d) * str;
+          fy += (dy / d) * str;
+        }
+      }
+
+      // Formation mode: strong pull toward assigned target point
+      let nearTarget = false;
+      if (mood === 'formation' && p.target) {
+        const dx = p.target.x - p.x, dy = p.target.y - p.y;
+        const d = Math.hypot(dx, dy) || 1;
+        // Strong pull, proportional to distance (spring-like)
+        // Strengthened from 0.25 to 0.5 to overcome repulsion at crowded target points
+        const pullStrength = 0.5;
+        fx += dx * pullStrength * 0.02;
+        fy += dy * pullStrength * 0.02;
+        // Near-target flag: suppress repulsion so particles can reach crowded targets
+        if (d < 8) nearTarget = true;
+      }
+
+      // Repulsion (always active, prevents merging)
+      // During formation, particles near their target use weaker repulsion
+      const repulDist = nearTarget ? 4 : REPULSION_DIST;
+      const repulStrength = nearTarget ? 0.1 : 0.3;
+      for (const q of particles) {
+        if (q === p) continue;
+        const dx = p.x - q.x, dy = p.y - q.y;
+        const d2 = dx*dx + dy*dy;
+        if (d2 < repulDist * repulDist && d2 > 0.01) {
+          const d = Math.sqrt(d2);
+          const force = (repulDist - d) / repulDist * repulStrength;
+          fx += (dx / d) * force;
+          fy += (dy / d) * force;
+        }
+      }
+
+      // Soft boundary (gentle inward pull near edges)
+      const M = 30;
+      if (p.x < M)       fx += (M - p.x) * 0.003;
+      if (p.x > W - M)   fx -= (p.x - (W - M)) * 0.003;
+      if (p.y < M)       fy += (M - p.y) * 0.003;
+      if (p.y > H - M)   fy -= (p.y - (H - M)) * 0.003;
+
+      // Integrate
+      p.vx += fx * dt * 0.03;
+      p.vy += fy * dt * 0.03;
+
+      // Damping (less damping during burst, slight extra damping during formation)
+      const dampFactor = mood === 'burst' ? 0.96 : (mood === 'formation' ? 0.93 : 0.92);
+      const damp = Math.pow(dampFactor, dt * 0.016);
+      p.vx *= damp;
+      p.vy *= damp;
+
+      // Speed cap (varies by mood)
+      let maxSpd = mood === 'burst' ? 6.0
+                 : mood === 'formation' ? 5.0
+                 : mood === 'radial' ? 2.0
+                 : mood === 'follow' ? 1.5
+                 : mood === 'orbit' ? 1.3
+                 : mood === 'gravity' ? 1.8
+                 : mood === 'wave' ? 0.9
+                 : mood === 'disperse' ? 1.2
+                 : 0.7;
+      if (postFormationSoftMs > 0) maxSpd = Math.min(maxSpd, 0.35);   // very slow drift right after formation
+      const v = Math.hypot(p.vx, p.vy);
+      if (v > maxSpd) { p.vx = p.vx / v * maxSpd; p.vy = p.vy / v * maxSpd; }
+
+      // Move
+      p.x += p.vx * dt * 0.016;
+      p.y += p.vy * dt * 0.016;
+
+      // Absolute clamp
+      p.x = Math.max(4, Math.min(W - 4, p.x));
+      p.y = Math.max(4, Math.min(H - 4, p.y));
+    }
+  }
+
+  // ============================================================
+  // Rendering
+  // ============================================================
+  function render() {
+    // Full clear — crisp, no trailing smudge (tsui-clock-like sharpness)
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+
+    // Compute main color for this frame
+    const hue = hueCurrent;
+    const coreColor = `hsl(${hue}, 85%, 72%)`;
+    const glowColor = `hsl(${hue}, 75%, 55%)`;
+    const outerColor = `hsl(${hue}, 70%, 45%)`;
+
+    // Pulse mood: collective synchronized brightness oscillation
+    let pulseMul = 1;
+    if (mood === 'pulse') {
+      const t = moodTimerMs / 1000;
+      pulseMul = 0.5 + 0.7 * (0.5 + 0.5 * Math.sin(t * 1.8));   // 0.5 to 1.2
+    }
+
+    for (const p of particles) {
+      // Life phase alpha
+      let alpha = 1;
+      if (p.lifePhase === 0) {
+        alpha = Math.min(1, p.phaseMs / 2500);
+      } else if (p.lifePhase === 2) {
+        alpha = Math.max(0, 1 - p.phaseMs / 2500);
+      }
+      alpha *= pulseMul;
+
+      // Size is now fixed (no pulse)
+      const r = p.size;
+
+      // Mid glow — tighter, denser for crisp neon feel
+      ctx.globalAlpha = alpha * 0.45;
+      ctx.fillStyle = glowColor;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(1.5, r * 2.2), 0, Math.PI * 2);
+      ctx.fill();
+
+      // Crisp colored core
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = coreColor;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(0.8, r * 1.0), 0, Math.PI * 2);
+      ctx.fill();
+
+      // Small bright center (white sparkle)
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(0.4, r * 0.4), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ============================================================
+  // Main loop
+  // ============================================================
+  function loop(tNow) {
+    const dt = Math.min(100, tNow - lastLoopT);
+    lastLoopT = tNow;
+    if (running) {
+      update(dt);
+    }
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // ============================================================
+  // Persistence (minimal — just hue and running state)
+  // ============================================================
+  function save() {
+    try {
+      const payload = {
+        v: 1,
+        hue: hueCurrent,
+        running,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+    } catch (_) {}
+  }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return null;
+      const p = JSON.parse(raw);
+      if (typeof p.hue === 'number') {
+        hueCurrent = p.hue;
+        hueTarget = p.hue;
+      }
+      if (typeof p.running === 'boolean') running = p.running;
+      return p;
+    } catch (_) { return null; }
+  }
+
+  // ============================================================
+  // Controls
+  // ============================================================
+  const btnPause = document.getElementById('btn-pause');
+  const btnShift = document.getElementById('btn-shift');
+
+  btnPause.addEventListener('click', () => {
+    running = !running;
+    btnPause.textContent = running ? '❚❚' : '▶';
+  });
+
+  btnShift.addEventListener('click', () => {
+    shiftHue();
+    scheduleNextHueShift();
+  });
+
+  const btnSpawn = document.getElementById('btn-spawn');
+  btnSpawn.addEventListener('click', () => {
+    const alive = particles.filter(p => p.lifePhase < 2).length;
+    const remaining = COUNT_MAX - alive;
+    const n = Math.min(10, remaining);
+    for (let i = 0; i < n; i++) {
+      particles.push(spawnParticle());
+    }
+  });
+
+  document.getElementById('btn-spawn-max').addEventListener('click', () => {
+    const alive = particles.filter(p => p.lifePhase < 2).length;
+    const remaining = COUNT_MAX - alive;
+    for (let i = 0; i < remaining; i++) {
+      particles.push(spawnParticle());
+    }
+  });
+
+  document.getElementById('btn-circle').addEventListener('click', () => startFormation('circle'));
+  document.getElementById('btn-heart').addEventListener('click',  () => startFormation('heart'));
+  document.getElementById('btn-star').addEventListener('click',   () => startFormation('star'));
+  document.getElementById('btn-text').addEventListener('click',   () => {
+    const text = window.prompt(currentLangPrompt(), '');
+    if (text && text.trim()) startFormation('text', text.trim());
+  });
+  function currentLangPrompt() {
+    // Very simple bilingual prompt — no full i18n system here yet
+    return navigator.language && navigator.language.startsWith('ja')
+      ? '表示する文字を入力（1〜20字）'
+      : 'enter text (1-20 chars)';
+  }
+
+  // About modal
+  const modalBackdrop = document.getElementById('modal-backdrop');
+  document.getElementById('btn-about').addEventListener('click', () => {
+    modalBackdrop.classList.add('open');
+  });
+  document.getElementById('modal-close').addEventListener('click', () => {
+    modalBackdrop.classList.remove('open');
+  });
+  modalBackdrop.addEventListener('click', (e) => {
+    // Close when clicking outside the modal content (on the backdrop itself)
+    if (e.target === modalBackdrop) modalBackdrop.classList.remove('open');
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modalBackdrop.classList.contains('open')) {
+      modalBackdrop.classList.remove('open');
+    }
+  });
+
+  // Click anywhere on canvas: attract particles toward click point briefly
+  canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (W / rect.width);
+    const y = (e.clientY - rect.top) * (H / rect.height);
+    // Give all particles a nudge toward the click
+    for (const p of particles) {
+      const dx = x - p.x, dy = y - p.y;
+      const d = Math.hypot(dx, dy) || 1;
+      p.vx += (dx / d) * 0.8;
+      p.vy += (dy / d) * 0.8;
+    }
+  });
+
+  // Mouse awareness: track mouse position while over canvas
+  canvas.addEventListener('pointermove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    mousePos = {
+      x: (e.clientX - rect.left) * (W / rect.width),
+      y: (e.clientY - rect.top) * (H / rect.height),
+    };
+    mouseIdleMs = 0;
+  });
+  canvas.addEventListener('pointerleave', () => {
+    mousePos = null;
+  });
+
+  // ============================================================
+  // Init
+  // ============================================================
+  fitCanvas();
+  load();
+  if (particles.length === 0) {
+    seedParticles();
+  }
+  newMoodCycle();
+  scheduleNextHueShift();
+  nextBirthInMs = rand(3000, 8000);
+
+  // Update pause button state
+  btnPause.textContent = running ? '❚❚' : '▶';
+
+  // Periodic save (only when needed, low frequency)
+  setInterval(save, 30000);
+  window.addEventListener('beforeunload', save);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+
+  lastLoopT = performance.now();
+  requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>
