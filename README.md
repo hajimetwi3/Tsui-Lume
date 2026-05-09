@@ -7,7 +7,7 @@
    (Cookie なし / フィンガープリントなし / クロスサイトトラッキングなし)。
 
 ## スクリーンショット  
-<img width="480" alt="image" src="./images/2.1.jpg" />  
+<img width="480" alt="image" src="./images/5.1.jpg" />  
 
 ## 使い方  
 以下の３つの起動方法があります。  
