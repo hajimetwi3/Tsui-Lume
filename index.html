@@ -1,43 +1,69 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<!-- Clickjacking defense (frame-busting) — 多層防御: CSPのframe-ancestorsと併用 -->
+<meta charset="UTF-8">
+<!--
+═══════════════════════════════════════════════════════════════════
+  Tsui Lume
+═══════════════════════════════════════════════════════════════════
+
+  Name:        Tsui Lume
+  Author:      Hajime Tsui
+  Version:     0.4.0
+
+  ─── License ─────────────────────────────────────────────────────
+
+  MIT License — © 2026 Hajime Tsui
+
+═══════════════════════════════════════════════════════════════════
+-->
+
 <style id="antiClickjack">html{display:none !important;}</style>
 <script>
   (function(){
-    if (self === top) {
-      var s = document.getElementById('antiClickjack');
-      if (s && s.parentNode) s.parentNode.removeChild(s);
-    } else {
-      try { top.location = self.location; } catch (e) {}
+    function lockHidden() {
+      try {
+        document.documentElement.style.setProperty('display', 'none', 'important');
+      } catch (e) {}
+    }
+    function wipe() {
+      lockHidden();
       try { document.documentElement.innerHTML = ''; } catch (e) {}
+      lockHidden();
+    }
+    if (self === top) {
+      try {
+        var s = document.getElementById('antiClickjack');
+        if (s && s.parentNode) s.parentNode.removeChild(s);
+      } catch (e) {}
+      return;
+    }
+    lockHidden();
+    try { top.location = self.location.href; } catch (e) {}
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', wipe, { once: true });
+      window.addEventListener('load', wipe, { once: true });
+    } else {
+      wipe();
     }
   })();
 </script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="
-  default-src 'none';
-  script-src 'unsafe-inline';
-  style-src 'unsafe-inline';
-  img-src 'self' data:;
-  connect-src 'none';
-  frame-ancestors 'none';
-  base-uri 'none';
-  form-action 'none';
-">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; font-src 'none'; manifest-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'; media-src 'none'; child-src 'none';">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <meta name="referrer" content="no-referrer">
 <meta name="description" content="Tsui Lume — 深い闇に漂う、光の粒。ブラウザで完結、外部通信なし。">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23000'/%3E%3Ccircle cx='16' cy='16' r='2' fill='%23b28fd0'/%3E%3Ccircle cx='8' cy='10' r='1.2' fill='%237dd3c0'/%3E%3Ccircle cx='23' cy='9' r='1' fill='%23e8d4a0'/%3E%3Ccircle cx='10' cy='22' r='0.9' fill='%23e8b842'/%3E%3Ccircle cx='24' cy='23' r='1.3' fill='%236b7ddb'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23000005'/%3E%3Ccircle cx='16' cy='16' r='2.2' fill='%23b28fd0'/%3E%3Ccircle cx='8' cy='10' r='1.1' fill='%237dd3c0'/%3E%3Ccircle cx='23' cy='9' r='1' fill='%23e8d4a0'/%3E%3Ccircle cx='10' cy='22' r='0.9' fill='%23e8b842'/%3E%3Ccircle cx='24' cy='23' r='1.3' fill='%236b7ddb'/%3E%3C/svg%3E">
 <title>Tsui Lume</title>
 
 <style>
   :root {
     --bg: #000;
-    --fg: #cfd6e6;
-    --fg-faint: #6c7285;
-    --border: #1b2238;
+    --fg: #d7deee;
+    --fg-soft: #aeb7cf;
+    --fg-faint: #737b91;
+    --border: #1d263f;
+    --panel: rgba(5, 8, 18, 0.72);
     --hue-current: 160;
   }
 
@@ -48,16 +74,18 @@
     height: 100%;
     background: var(--bg);
     color: var(--fg);
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
     font-size: 12px;
     overflow: hidden;
     -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
   }
 
   body {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    touch-action: manipulation;
   }
 
   .app {
@@ -65,85 +93,116 @@
     display: flex;
     flex-direction: column;
     position: relative;
+    isolation: isolate;
   }
 
-  /* Canvas fills the entire space */
   canvas {
     display: block;
     width: 100%;
     height: 100%;
     flex: 1;
+    background: #000;
   }
 
-  /* Minimal controls — shown on hover only */
   .controls {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    top: max(8px, env(safe-area-inset-top));
+    right: max(8px, env(safe-area-inset-right));
     display: flex;
     gap: 6px;
     opacity: 0;
-    transition: opacity 0.3s;
-    font-family: ui-monospace, monospace;
+    transition: opacity 0.28s ease;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 14px;
     z-index: 10;
     flex-wrap: wrap;
     justify-content: flex-end;
     max-width: calc(100% - 16px);
   }
-  .app:hover .controls { opacity: 0.7; }
-  .controls:hover { opacity: 1 !important; }
+  .app:hover .controls { opacity: 0.66; }
+  .controls:hover, .controls:focus-within { opacity: 1 !important; }
 
   .controls button {
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--panel);
     color: var(--fg-faint);
-    border: 1px solid var(--border);
-    padding: 8px 14px;
+    border: 1px solid color-mix(in srgb, var(--border), hsl(var(--hue-current), 70%, 50%) 8%);
+    border-radius: 10px;
+    padding: 8px 12px;
     min-width: 40px;
     min-height: 40px;
     cursor: pointer;
     font-family: inherit;
-    font-size: 14px;
+    font-size: 13px;
     letter-spacing: 0.08em;
-    transition: color 0.15s, border-color 0.15s;
-    backdrop-filter: blur(4px);
+    transition: color 0.15s ease, border-color 0.15s ease, transform 0.15s ease, background 0.15s ease;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.015) inset, 0 8px 24px rgba(0,0,0,0.2);
   }
-  .controls button:hover {
+  .controls button:hover,
+  .controls button:focus-visible {
     color: var(--fg);
-    border-color: var(--fg-faint);
+    border-color: hsl(var(--hue-current), 62%, 55%);
+    outline: none;
+    transform: translateY(-1px);
   }
   .controls button.active {
-    color: hsl(var(--hue-current), 70%, 65%);
-    border-color: hsl(var(--hue-current), 70%, 45%);
+    color: hsl(var(--hue-current), 76%, 72%);
+    border-color: hsl(var(--hue-current), 70%, 48%);
+    background: rgba(6, 11, 24, 0.86);
   }
+  .controls button:active { transform: translateY(0); }
 
-  /* Mobile / touch: show controls always (no hover) */
   @media (hover: none), (pointer: coarse) {
-    .controls { opacity: 0.7; }
-    .app:hover .controls { opacity: 0.7; }
+    .controls { opacity: 0.72; }
+    .app:hover .controls { opacity: 0.72; }
   }
 
-  /* Title: shown only on first load or via option */
   .title {
     position: absolute;
-    bottom: 8px;
-    left: 12px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: max(12px, env(safe-area-inset-left));
     color: var(--fg-faint);
-    font-family: ui-monospace, monospace;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 10px;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.14em;
     opacity: 0;
-    transition: opacity 0.5s;
+    transition: opacity 0.5s ease;
     z-index: 10;
     pointer-events: none;
+    text-shadow: 0 0 12px rgba(255,255,255,0.08);
   }
-  .app:hover .title { opacity: 0.5; }
+  .app:hover .title { opacity: 0.52; }
 
-  /* About modal */
+  .toast {
+    position: absolute;
+    left: 50%;
+    bottom: 28px;
+    transform: translateX(-50%) translateY(8px);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 12;
+    color: var(--fg-soft);
+    background: rgba(2, 4, 12, 0.72);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    transition: opacity 0.28s ease, transform 0.28s ease;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .toast.show {
+    opacity: 0.78;
+    transform: translateX(-50%) translateY(0);
+  }
+
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.75);
+    background: rgba(0, 0, 0, 0.78);
     display: none;
     align-items: center;
     justify-content: center;
@@ -151,13 +210,12 @@
     padding: 20px;
     overflow-y: auto;
   }
-  .modal-backdrop.open {
-    display: flex;
-  }
+  .modal-backdrop.open { display: flex; }
   .modal {
-    background: #0b0e1c;
-    border: 1px solid var(--border);
-    max-width: 520px;
+    background: linear-gradient(180deg, rgba(13,17,34,0.98), rgba(7,9,20,0.98));
+    border: 1px solid color-mix(in srgb, var(--border), hsl(var(--hue-current), 70%, 50%) 16%);
+    border-radius: 18px;
+    max-width: 560px;
     width: 100%;
     max-height: 90vh;
     overflow-y: auto;
@@ -165,19 +223,20 @@
     position: relative;
     color: var(--fg);
     font-size: 13px;
-    line-height: 1.65;
+    line-height: 1.68;
+    box-shadow: 0 20px 80px rgba(0,0,0,0.55), 0 0 80px hsla(var(--hue-current), 70%, 35%, 0.09);
   }
   .modal h2 {
-    font-size: 18px;
-    font-weight: 400;
+    font-size: 19px;
+    font-weight: 440;
     letter-spacing: 0.02em;
     margin-bottom: 2px;
   }
   .modal h3 {
-    font-family: ui-monospace, monospace;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 10px;
     font-weight: normal;
-    letter-spacing: 0.15em;
+    letter-spacing: 0.16em;
     color: var(--fg-faint);
     text-transform: uppercase;
     margin-top: 18px;
@@ -189,7 +248,7 @@
     margin-bottom: 8px;
   }
   .modal .modal-version {
-    font-family: ui-monospace, monospace;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 11px;
     color: var(--fg-faint);
     margin-bottom: 16px;
@@ -203,24 +262,52 @@
     margin-top: 12px;
   }
   .modal pre {
-    font-family: ui-monospace, monospace;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 10.5px;
     color: var(--fg-faint);
     line-height: 1.5;
     white-space: pre-wrap;
     word-break: break-word;
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(255, 255, 255, 0.025);
     border: 1px solid var(--border);
     padding: 10px 12px;
-    border-radius: 2px;
+    border-radius: 10px;
+  }
+  .modal code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: rgba(255, 255, 255, 0.045);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 0.92em;
+    color: var(--fg);
+  }
+  .modal pre code {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    font-size: inherit;
+    color: inherit;
+  }
+  .modal ul {
+    padding-left: 1.3em;
+    margin-top: 4px;
+    margin-bottom: 10px;
+  }
+  .modal li {
+    font-size: 12.5px;
+    color: var(--fg);
+    line-height: 1.7;
   }
   .modal a {
     color: hsl(var(--hue-current), 70%, 65%);
     text-decoration: none;
     border-bottom: 1px dotted;
-    transition: opacity 0.15s;
+    transition: opacity 0.15s ease;
   }
-  .modal a:hover { opacity: 0.7; }
+  .modal a:hover,
+  .modal a:focus-visible { opacity: 0.7; outline: none; }
   .modal-close {
     position: absolute;
     top: 12px;
@@ -228,75 +315,117 @@
     background: transparent;
     color: var(--fg-faint);
     border: 1px solid var(--border);
-    padding: 4px 10px;
+    border-radius: 999px;
+    padding: 5px 11px;
     cursor: pointer;
-    font-family: ui-monospace, monospace;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 10px;
     letter-spacing: 0.1em;
-    transition: color 0.15s, border-color 0.15s;
+    transition: color 0.15s ease, border-color 0.15s ease;
   }
-  .modal-close:hover {
+  .modal-close:hover,
+  .modal-close:focus-visible {
     color: var(--fg);
     border-color: var(--fg-faint);
+    outline: none;
+  }
+
+  @supports not (color: color-mix(in srgb, #000, #fff)) {
+    .controls button, .modal { border-color: var(--border); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .controls, .title, .toast, .controls button { transition: none; }
   }
 </style>
 </head>
 <body>
 
 <div class="app" id="app">
-  <canvas id="canvas"></canvas>
-  <div class="controls">
-    <button type="button" id="btn-pause" title="停止/再生">❚❚</button>
-    <button type="button" id="btn-spawn" title="増やす (+10)">✦</button>
-    <button type="button" id="btn-spawn-max" title="最大まで増やす">✦✦</button>
-    <button type="button" id="btn-shift" title="色を変える">↻</button>
-    <button type="button" id="btn-circle" title="円">◯</button>
-    <button type="button" id="btn-heart"  title="ハート">♥</button>
-    <button type="button" id="btn-star"   title="星">★</button>
-    <button type="button" id="btn-text"   title="文字">T</button>
-    <button type="button" id="btn-fireworks" title="花火">🎆</button>
-    <button type="button" id="btn-about"  title="About">?</button>
+  <canvas id="canvas" aria-label="Tsui Lume particle canvas"></canvas>
+  <div class="controls" aria-label="controls">
+    <button type="button" id="btn-pause" title="停止/再生 (Space)" aria-label="停止/再生">❚❚</button>
+    <button type="button" id="btn-spawn" title="増やす (+10)" aria-label="粒を増やす">✦</button>
+    <button type="button" id="btn-spawn-max" title="最大まで増やす" aria-label="最大まで増やす">✦✦</button>
+    <button type="button" id="btn-shift" title="色を変える (C)" aria-label="色を変える">↻</button>
+    <button type="button" id="btn-circle" title="円" aria-label="円に並ぶ">◯</button>
+    <button type="button" id="btn-heart"  title="ハート" aria-label="ハートに並ぶ">♥</button>
+    <button type="button" id="btn-star"   title="星" aria-label="星に並ぶ">★</button>
+    <button type="button" id="btn-text"   title="文字 (T)" aria-label="文字に並ぶ">T</button>
+    <button type="button" id="btn-fireworks" title="花火 (F)" aria-label="花火">🎆</button>
+    <button type="button" id="btn-quality" title="画質 Auto / High / Eco" aria-label="画質切り替え">Q:A</button>
+    <button type="button" id="btn-trails" title="光跡 ON/OFF (R)" aria-label="粒子の光跡 ON/OFF">TR:OFF</button>
+    <button type="button" id="btn-connections" title="近接ライン ON/OFF (L)" aria-label="近接ライン ON/OFF">LN:OFF</button>
+    <button type="button" id="btn-about"  title="About" aria-label="About">?</button>
   </div>
-  <div class="title">tsui-lume</div>
+  <div class="title">tsui-lume · no network · single file</div>
+  <div class="toast" id="toast" aria-live="polite"></div>
 </div>
 
-<!-- About modal -->
 <div class="modal-backdrop" id="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
   <div class="modal" id="modal">
     <button class="modal-close" id="modal-close" aria-label="閉じる">Close</button>
     <h2 id="modal-title">Tsui Lume</h2>
-    <p class="modal-version">Version 0.1</p>
+    <p class="modal-version">Version 0.4.0</p>
 
-    <h3>About</h3>
-    <p>深い闇に漂う、光の粒。気まぐれに集まり、弾け、回り、時々文字や形に並ぶ。</p>
+    <p><strong>Tsui Lume</strong> は、ブラウザ上で動く粒子表現の道具です。深い闇に漂う、光の粒。気まぐれに集まり、弾け、回り、時々文字や形に並ぶ。ログイン不要、インストール不要、データの外部送信なし。</p>
     <p>デスクトップの端に置いておく用途として設計。実用性を考えない、Tsui~ シリーズの道具です。</p>
-    <p class="modal-hint">
-      画面上にマウスを乗せると右上にコントロールが現れます。<br>
-      ❚❚ 停止 &nbsp; ✦ 粒を増やす(+10) &nbsp; ✦✦ 最大まで &nbsp; ↻ 色変更<br>
-      ◯♥★ 形に並ぶ &nbsp; T 文字に並ぶ &nbsp; 🎆 花火<br>
-      画面クリックで粒がそちらに動きます。
-    </p>
 
-    <h3>Privacy</h3>
-    <p>外部へのデータ送信は一切ありません。入力した文字列も含め、データが端末の外に出ることはありません。</p>
-    <p>ブラウザ内 localStorage に保存するのは、色相・停止状態・バージョン番号・保存時刻のみです。粒子の位置や数などは保存されません（開くたびに新しい状態から始まります）。</p>
+    <h3>PRIVACY</h3>
+    <p>入力した文字列を含むデータは、本アプリ本体から外部送信されません。<code>connect-src 'none'</code> により、<code>fetch</code> 等のネットワーク送信は、ブラウザレベルで禁止されます。DevTools の Network タブで確認いただけます。</p>
+    <p>入力した文字列は描画処理にのみ使われ、保存されません。<code>localStorage</code> に保存するのは、色相・停止状態・画質モード・光跡 ON/OFF・近接ライン ON/OFF・バージョン番号・保存時刻のみです。粒子の位置や数は保存されません(開くたびに新しい状態から始まります)。</p>
+    <p>本アプリ本体には計測機能は一切含まれていません(上記の <code>connect-src 'none'</code> により、ブラウザの CSP 機構で外部送信が禁止されるため)。</p>
+    <p>一方、作者プロフィールや Tsui series のランディングページ等の情報ページでは、訪問数の把握に Cloudflare Web Analytics を利用しています(Cookie なし / フィンガープリントなし / クロスサイトトラッキングなし)。</p>
+    <p>なお、別途プラットフォーム側(配信元サーバや中継事業者等)で計測・記録されている可能性はあります。</p>
 
-    <h3>Disclaimer</h3>
-    <p>本アプリは現状有姿で提供され、動作の正確性・可用性について一切の保証はありません。ご利用は自己責任にてお願いします。</p>
+    <h3>USAGE</h3>
+    <p>画面上にマウスを乗せると右上にコントロールが現れます。画面クリックで粒がそちらへ静かに引き寄せられます。</p>
+    <ul>
+      <li><code>❚❚</code> / <code>Space</code> — 停止 / 再生</li>
+      <li><code>✦</code> — 粒を増やす(+10)</li>
+      <li><code>✦✦</code> — 最大まで増やす</li>
+      <li><code>↻</code> / <code>C</code> — 色を変える</li>
+      <li><code>◯</code> <code>♥</code> <code>★</code> — 円・ハート・星に並ぶ</li>
+      <li><code>T</code> / <code>T</code>キー — 入力した文字に並ぶ</li>
+      <li><code>🎆</code> / <code>F</code> — 花火</li>
+      <li><code>Q</code> — 画質切替(Auto / High / Eco)</li>
+      <li><code>TR</code> / <code>R</code> — 光跡 ON/OFF(初期 OFF)</li>
+      <li><code>LN</code> / <code>L</code> — 近接ライン ON/OFF(初期 OFF)</li>
+    </ul>
 
-    <h3>License</h3>
-    <pre>MIT License
+    <h3>DISCLAIMER</h3>
+    <p>本ソフトウェアは現状有姿で提供され、動作の正確性・可用性について一切の保証はありません。ご利用は自己責任でお願いします。</p>
 
-Copyright (c) 2026 <a href="https://hajimetwi3.github.io/hajimetwi3/" target="_blank" rel="noopener noreferrer">Hajime Tsui</a>
+    <h3>LICENSE (THIS APP)</h3>
+    <p>Copyright (c) 2026 <a href="https://hajimetwi3.github.io/hajimetwi3/" target="_blank" rel="noopener noreferrer">Hajime Tsui</a></p>
+<pre><code>MIT License
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+Copyright (c) 2026 Hajime Tsui
 
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</pre>
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-    <h3>Third-Party</h3>
-    <p>外部ライブラリ・外部フォント・外部リソースへの依存はありません（システムフォントのみ使用）。</p>
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</code></pre>
+
+    <h3>THIRD-PARTY</h3>
+    <p>なし。外部モジュールには依存しません。</p>
+
+    <h3>RELATED</h3>
+    <p>本アプリは <a href="https://hajimetwi3.github.io/hajimetwi3/Tsui-series/" target="_blank" rel="noopener noreferrer">Tsui series</a>(静かな道具たち)の一つです。</p>
+    <p>GitHub: <a href="https://github.com/hajimetwi3/Tsui-Lume" target="_blank" rel="noopener noreferrer">github.com/hajimetwi3/Tsui-Lume</a></p>
   </div>
 </div>
 
@@ -304,380 +433,392 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 (function(){
   'use strict';
 
-  // ============================================================
-  // Constants
-  // ============================================================
-  const SAVE_KEY = 'tsui-lume-v0-1';
-  const COUNT_MIN = 4;
-  const COUNT_MAX = 1000;
-  const REPULSION_DIST = 7;         // minimum visible separation (so particles don't merge)
+  
+  const VERSION = '0.4.0';
+  const SAVE_KEY = 'tsui-lume-v0-4';
+  const COUNT_MIN = 12;
+  const COUNT_MAX = 1200;
+  const REPULSION_DIST = 8;
+  const FORMATION_DURATION = 16500;
+  const PALETTE_HUES = [160, 200, 230, 280, 320, 40, 120];
+  const FW_PALETTE_HUES = [40, 160, 320, 280, 0, 120, 200];
+  const QUALITY_ORDER = ['auto', 'high', 'eco'];
+  const PREFERS_REDUCED_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // ============================================================
-  // State
-  // ============================================================
-  let W = 400, H = 300;              // updated on resize
+  const QUALITY = {
+    auto: { label: 'A', dprCap: 2.0, dustMul: 1.00, connections: true, spriteMul: 1.00 },
+    high: { label: 'H', dprCap: 2.5, dustMul: 1.30, connections: true, spriteMul: 1.12 },
+    eco:  { label: 'E', dprCap: 1.25, dustMul: 0.55, connections: false, spriteMul: 0.88 },
+  };
+
+  
+  let W = 400, H = 300, DPR = 1;
   let particles = [];
   let running = true;
   let lastLoopT = 0;
-  let hueCurrent = 160;              // current color hue (0-360)
-  let hueTarget = 160;                // target hue for smooth transitions
-  let hueShiftCdMs = 0;               // cooldown until next spontaneous color shift
-  let moodTimerMs = 0;                // timer for mood changes (cluster/disperse)
+  let avgFrameMs = 16.7;
+  let autoDprCap = 2.0;
+  let lastAutoDprAdjustMs = 0;
+  let qualityMode = 'auto';
+  let trailsEnabled = false;
+  let connectionsEnabled = false;
+
+  let hueCurrent = 160;
+  let hueTarget = 160;
+  let hueShiftCdMs = 0;
+
+  let moodTimerMs = 0;
   let moodDurationMs = 0;
-  let mood = 'drift';                 // 'drift' | 'cluster' | 'disperse' | 'burst' | 'formation' | 'orbit' | 'wave' | 'follow' | 'breathe' | 'pulse' | 'radial' | 'gravity'
-  let lastBirthMs = 0;                // timer for birth/death cycles
+  let mood = 'drift';
+  let lastBirthMs = 0;
   let nextBirthInMs = 0;
-  let msSinceExcitingEvent = 0;       // for idle-bonus: triggers a fun mood if nothing exciting happened
-  let leaderId = 0;                   // for 'follow' mood
-  let waveDirection = 'horizontal';   // 'horizontal' | 'vertical' for wave mood
-  let orbitDirection = 1;             // +1 or -1 for orbit spin direction
-  let gravityWell = null;             // {x, y} for gravity well mood
-  let breathePhase = 0;               // oscillation phase for breathe mood
-  let mousePos = null;                // {x, y} for mouse awareness
-  let mouseIdleMs = 0;                // ms since last mouse movement near canvas
+  let msSinceExcitingEvent = 0;
+  let leaderId = 0;
+  let waveDirection = 'horizontal';
+  let orbitDirection = 1;
+  let gravityWell = null;
+  let postFormationSoftMs = 0;
+  let mousePos = null;
+  let mouseIdleMs = 0;
+  let formationMs = 0;
+  let nextParticleId = 1;
 
-  // ============================================================
-  // Fireworks — independent particle system, doesn't affect main lume
-  // ============================================================
-  const fireworks = [];               // active firework entities (rockets and sparks)
-  let fireworkShowQueue = [];         // scheduled upcoming shots: [{atMs, hue}, ...]
-  const FW_PALETTE_HUES = [40, 160, 320, 280, 0, 120, 200];   // amber, teal, magenta, violet, red, green, blue
+  const fireworks = [];
+  let fireworkShowQueue = [];
+  let dust = [];
+  const spriteCache = new Map();
+  let toastTimer = 0;
+  let lastFocusedBeforeModal = null;
 
-  // ============================================================
-  // Utilities
-  // ============================================================
+  
   const rand = (a, b) => a + Math.random() * (b - a);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
   const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  const smoothstep = t => t * t * (3 - 2 * t);
+  const easeInOutCubic = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const dist2 = (ax, ay, bx, by) => {
+    const dx = ax - bx, dy = ay - by;
+    return dx * dx + dy * dy;
+  };
 
-  // ============================================================
-  // Canvas & resize
-  // ============================================================
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function shortestHueDiff(target, current) {
+    let diff = target - current;
+    if (diff > 180) diff -= 360;
+    if (diff < -180) diff += 360;
+    return diff;
+  }
+
+  function showToast(message) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 1600);
+  }
+
+  function safeTextSlice(text, maxChars) {
+    return Array.from(String(text || '').trim()).slice(0, maxChars).join('');
+  }
+
+  
   const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { alpha: false });
+
+  function currentQualitySettings() {
+    return QUALITY[qualityMode] || QUALITY.auto;
+  }
+
+  function targetDprCap() {
+    if (qualityMode === 'auto') return autoDprCap;
+    return currentQualitySettings().dprCap;
+  }
 
   function fitCanvas() {
     const rect = canvas.getBoundingClientRect();
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    W = rect.width;
-    H = rect.height;
-    canvas.width = W * dpr;
-    canvas.height = H * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    W = Math.max(1, rect.width);
+    H = Math.max(1, rect.height);
+    DPR = Math.max(1, Math.min(targetDprCap(), window.devicePixelRatio || 1));
+    canvas.width = Math.max(1, Math.floor(W * DPR));
+    canvas.height = Math.max(1, Math.floor(H * DPR));
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    generateDust();
+    spriteCache.clear();
   }
-  window.addEventListener('resize', fitCanvas);
 
-  // ============================================================
-  // Particles
-  // ============================================================
-  let nextParticleId = 1;
+  function generateDust() {
+    const q = currentQualitySettings();
+    const area = W * H;
+    const baseCount = clamp(Math.floor(area / 13500), 28, 180);
+    const count = Math.floor(baseCount * q.dustMul);
+    dust = [];
+    for (let i = 0; i < count; i++) {
+      dust.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: rand(0.25, 1.15),
+        a: rand(0.06, 0.22),
+        phase: rand(0, Math.PI * 2),
+        speed: rand(0.00025, 0.0011),
+      });
+    }
+  }
+
+  let resizeTimer = 0;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(fitCanvas, 80);
+  });
+
+  
+  function randomSpawnPosition(opts) {
+    opts = opts || {};
+    if (opts.x != null && opts.y != null) return { x: opts.x, y: opts.y };
+
+    if (opts.edge) {
+      const side = Math.floor(Math.random() * 4);
+      if (side === 0) return { x: rand(-20, W + 20), y: rand(-30, 5) };
+      if (side === 1) return { x: W + rand(-5, 30), y: rand(-20, H + 20) };
+      if (side === 2) return { x: rand(-20, W + 20), y: H + rand(-5, 30) };
+      return { x: rand(-30, 5), y: rand(-20, H + 20) };
+    }
+
+    return {
+      x: rand(W * 0.18, W * 0.82),
+      y: rand(H * 0.18, H * 0.82),
+    };
+  }
 
   function spawnParticle(opts) {
     opts = opts || {};
+    const pos = randomSpawnPosition(opts);
+    const depth = opts.depth != null ? opts.depth : rand(0.62, 1.28);
     return {
       id: nextParticleId++,
-      x: opts.x != null ? opts.x : rand(W * 0.2, W * 0.8),
-      y: opts.y != null ? opts.y : rand(H * 0.2, H * 0.8),
-      vx: rand(-0.3, 0.3),
-      vy: rand(-0.3, 0.3),
-      size: 0.9,                      // fixed small size for all particles
-      lifePhase: 0,                   // 0=new (fading in), 1=stable, 2=fading out
-      phaseMs: 0,                     // ms in current phase
-      target: null,                   // formation target point (null when not in formation mode)
+      x: pos.x,
+      y: pos.y,
+      vx: opts.vx != null ? opts.vx : rand(-0.26, 0.26),
+      vy: opts.vy != null ? opts.vy : rand(-0.26, 0.26),
+      size: opts.size != null ? opts.size : rand(0.72, 1.28),
+      depth,
+      twinklePhase: rand(0, Math.PI * 2),
+      twinkleSpeed: rand(0.0011, 0.0031),
+      warmth: rand(-10, 10),
+      lifePhase: opts.lifePhase != null ? opts.lifePhase : 0,
+      phaseMs: opts.phaseMs != null ? opts.phaseMs : 0,
+      target: null,
     };
   }
 
   function seedParticles() {
-    const n = Math.floor(rand(8, 14));
+    const areaBased = Math.floor((W * H) / 15000);
+    const n = PREFERS_REDUCED_MOTION ? clamp(areaBased, 18, 42) : clamp(areaBased + 18, 34, 82);
     for (let i = 0; i < n; i++) {
-      const p = spawnParticle();
-      p.lifePhase = 1;
+      const p = spawnParticle({ lifePhase: 1, phaseMs: 0 });
       particles.push(p);
     }
   }
 
-  // ============================================================
-  // Mood system — cycles between drift / cluster / disperse / burst
-  // burst is a special short-lived mood triggered after a dense cluster
-  // ============================================================
+  function liveCount() {
+    let n = 0;
+    for (const p of particles) if (p.lifePhase < 2) n++;
+    return n;
+  }
+
+  function ensureParticleCount(minCount, centerX, centerY) {
+    const alive = liveCount();
+    const target = Math.min(COUNT_MAX, Math.max(alive, minCount));
+    const add = target - alive;
+    for (let i = 0; i < add; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const edge = Math.random() < 0.52;
+      const p = edge
+        ? spawnParticle({ edge: true })
+        : spawnParticle({
+            x: (centerX != null ? centerX : W / 2) + Math.cos(angle) * rand(8, Math.min(W, H) * 0.36),
+            y: (centerY != null ? centerY : H / 2) + Math.sin(angle) * rand(8, Math.min(W, H) * 0.36),
+          });
+      p.lifePhase = 0;
+      p.phaseMs = rand(0, 900);
+      particles.push(p);
+    }
+  }
+
+  
   function pickMood() {
-    // Weighted distribution — drift most common, variety of rare behaviors
-    const r = Math.random();
-    let acc = 0;
-    const weights = [
-      ['drift',    40],
-      ['cluster',  15],
-      ['disperse', 10],
-      ['orbit',     8],
-      ['follow',    7],
-      ['wave',      6],
-      ['breathe',   5],
-      ['pulse',     4],
-      ['radial',    3],
-      ['gravity',   2],
+    const weights = PREFERS_REDUCED_MOTION ? [
+      ['drift', 58], ['cluster', 14], ['disperse', 10], ['breathe', 8], ['wave', 4], ['orbit', 3], ['follow', 2], ['gravity', 1]
+    ] : [
+      ['drift', 34], ['cluster', 13], ['disperse', 9], ['orbit', 9], ['follow', 7], ['wave', 7],
+      ['breathe', 6], ['pulse', 5], ['radial', 4], ['gravity', 3], ['constellation', 3]
     ];
-    const total = weights.reduce((s, [_, w]) => s + w, 0);
-    const pickVal = r * total;
-    let c = 0;
-    for (const [name, w] of weights) {
-      c += w;
-      if (pickVal < c) return name;
+    const total = weights.reduce((s, item) => s + item[1], 0);
+    let v = Math.random() * total;
+    for (const [name, weight] of weights) {
+      v -= weight;
+      if (v <= 0) return name;
     }
     return 'drift';
   }
 
-  // Compute spread (average distance from centroid) — used to detect tight clusters
-  function computeSpread() {
-    if (particles.length < 2) return Infinity;
-    let cx = 0, cy = 0, n = 0;
-    for (const p of particles) { cx += p.x; cy += p.y; n++; }
-    cx /= n; cy /= n;
+  function computeSpread(list) {
+    if (!list || list.length < 2) return Infinity;
+    let cx = 0, cy = 0;
+    for (const p of list) { cx += p.x; cy += p.y; }
+    cx /= list.length; cy /= list.length;
     let sum = 0;
-    for (const p of particles) {
-      sum += Math.hypot(p.x - cx, p.y - cy);
-    }
-    return sum / n;
+    for (const p of list) sum += Math.hypot(p.x - cx, p.y - cy);
+    return sum / list.length;
   }
 
-  let postFormationSoftMs = 0;        // soft-drift timer after formation (reduces wander/speed)
-
   function newMoodCycle() {
-    // After formation, calm drift — with a "soft" period where forces are muted
     if (mood === 'formation') {
-      // Clear targets
       for (const p of particles) p.target = null;
       mood = 'drift';
-      moodDurationMs = rand(8000, 16000);
+      moodDurationMs = rand(8500, 15500);
       moodTimerMs = 0;
-      postFormationSoftMs = 2500;   // 2.5 seconds of gentle drift after formation
+      postFormationSoftMs = 2600;
       return;
     }
-    // If the previous mood was a dense cluster, trigger a burst instead
-    if (mood === 'cluster' && particles.length >= 5) {
-      const spread = computeSpread();
-      // Tight cluster: average spread less than 1/6 of min dimension
-      if (spread < Math.min(W, H) / 6) {
-        mood = 'burst';
-        moodDurationMs = rand(2500, 4000);
-        moodTimerMs = 0;
-        triggerBurst();
-        msSinceExcitingEvent = 0;
-        return;
-      }
+
+    const live = particles.filter(p => p.lifePhase < 2);
+    if (mood === 'cluster' && live.length >= 5 && computeSpread(live) < Math.min(W, H) / 6.2) {
+      mood = 'burst';
+      moodDurationMs = PREFERS_REDUCED_MOTION ? rand(1200, 2200) : rand(2400, 3900);
+      moodTimerMs = 0;
+      triggerBurst(live);
+      msSinceExcitingEvent = 0;
+      return;
     }
-    // After a burst, always go to drift for a calm breath
+
     if (mood === 'burst') {
       mood = 'drift';
-      moodDurationMs = rand(8000, 16000);
+      moodDurationMs = rand(9000, 17000);
       moodTimerMs = 0;
       return;
     }
 
-    // Regular mood selection
     mood = pickMood();
-    moodDurationMs = rand(12000, 28000);   // each mood lasts 12-28 seconds
+    moodDurationMs = rand(12000, 28000);
     moodTimerMs = 0;
 
-    // Per-mood initialization
     if (mood === 'orbit') {
       orbitDirection = Math.random() < 0.5 ? 1 : -1;
-      moodDurationMs = rand(15000, 25000);   // longer for orbit
+      moodDurationMs = rand(15000, 26000);
       msSinceExcitingEvent = 0;
     } else if (mood === 'wave') {
       waveDirection = Math.random() < 0.5 ? 'horizontal' : 'vertical';
       msSinceExcitingEvent = 0;
     } else if (mood === 'follow') {
-      // Pick a random particle as leader
-      const live = particles.filter(p => p.lifePhase < 2);
       if (live.length > 0) {
-        leaderId = live[Math.floor(Math.random() * live.length)].id;
+        leaderId = pick(live).id;
         msSinceExcitingEvent = 0;
       } else {
         mood = 'drift';
       }
     } else if (mood === 'breathe') {
-      breathePhase = 0;
-      moodDurationMs = rand(15000, 22000);
+      moodDurationMs = rand(15000, 22500);
       msSinceExcitingEvent = 0;
-    } else if (mood === 'pulse') {
+    } else if (mood === 'pulse' || mood === 'constellation') {
       msSinceExcitingEvent = 0;
     } else if (mood === 'radial') {
-      moodDurationMs = rand(4000, 7000);   // shorter, dramatic
+      moodDurationMs = rand(4200, 6800);
       msSinceExcitingEvent = 0;
     } else if (mood === 'gravity') {
-      // Place a gravity well somewhere interesting
-      gravityWell = {
-        x: rand(W * 0.25, W * 0.75),
-        y: rand(H * 0.25, H * 0.75),
-      };
-      moodDurationMs = rand(6000, 10000);
+      gravityWell = { x: rand(W * 0.25, W * 0.75), y: rand(H * 0.25, H * 0.75) };
+      moodDurationMs = rand(6500, 10500);
       msSinceExcitingEvent = 0;
     } else if (mood === 'cluster' || mood === 'disperse') {
       msSinceExcitingEvent = 0;
     }
-    // drift doesn't reset the idle counter
   }
 
-  // Apply radial outward impulse to all particles from centroid
-  function triggerBurst() {
-    let cx = 0, cy = 0, n = 0;
-    for (const p of particles) { cx += p.x; cy += p.y; n++; }
-    if (n === 0) return;
-    cx /= n; cy /= n;
-    for (const p of particles) {
+  function triggerBurst(list) {
+    const live = list || particles.filter(p => p.lifePhase < 2);
+    if (live.length === 0) return;
+    let cx = 0, cy = 0;
+    for (const p of live) { cx += p.x; cy += p.y; }
+    cx /= live.length; cy /= live.length;
+    for (const p of live) {
       const dx = p.x - cx, dy = p.y - cy;
       const d = Math.hypot(dx, dy) || 1;
-      // Strong outward impulse, with some randomness
-      const mag = rand(3.5, 5.5);
-      p.vx += (dx / d) * mag + rand(-0.5, 0.5);
-      p.vy += (dy / d) * mag + rand(-0.5, 0.5);
+      const mag = PREFERS_REDUCED_MOTION ? rand(1.1, 2.0) : rand(3.4, 5.4);
+      p.vx += (dx / d) * mag + rand(-0.42, 0.42);
+      p.vy += (dy / d) * mag + rand(-0.42, 0.42);
     }
   }
 
-  // ============================================================
-  // Fireworks: rocket rises, explodes into colored sparks
-  // ============================================================
+  
   function launchFirework(hue) {
-    // Rocket starts at bottom, random X, shoots upward
-    const startX = rand(W * 0.2, W * 0.8);
-    const startY = H + 10;
-    const targetY = rand(H * 0.15, H * 0.4);   // explode in upper portion
+    if (PREFERS_REDUCED_MOTION) return;
+    const startX = rand(W * 0.18, W * 0.82);
     const rocket = {
       kind: 'rocket',
-      x: startX, y: startY,
-      vx: rand(-0.3, 0.3),
-      vy: -rand(5.5, 7.0),             // strong upward velocity
+      x: startX,
+      y: H + 14,
+      vx: rand(-0.32, 0.32),
+      vy: -rand(5.7, 7.4),
       hue,
-      trail: [],                        // recent positions for drawing trail
-      targetY,
+      saturation: 80,
+      lightness: 72,
+      trail: [],
+      targetY: rand(H * 0.12, H * 0.42),
       ageMs: 0,
     };
     fireworks.push(rocket);
   }
 
   function explodeFirework(rocket) {
-    // Multi-layered explosion (peony-style fireworks):
-    //  - Flash: instant white burst at center (lasts ~150ms)
-    //  - Lingering center: slow, long-lived sparks that stay near origin
-    //  - Inner core: bright white/yellow, fast small burst
-    //  - Middle ring: base hue, medium speed, dense
-    //  - Outer ring: base hue darker, slower, long trails
-    //  - Accent sparks: complementary hue, few but bright
-
     const baseHue = rocket.hue;
-    const accentHue = (baseHue + 180) % 360;   // complementary color
+    const accentHue = (baseHue + 180) % 360;
 
-    // Flash — single bright burst at center, fades fast
     fireworks.push({
-      kind: 'flash',
-      x: rocket.x, y: rocket.y,
-      vx: 0, vy: 0,
-      hue: baseHue,
-      saturation: 20,
-      lightness: 95,
-      trail: [],
-      ageMs: 0,
-      lifespanMs: 220,
-      baseSize: 25,
+      kind: 'flash', x: rocket.x, y: rocket.y, vx: 0, vy: 0,
+      hue: baseHue, saturation: 28, lightness: 96,
+      trail: [], ageMs: 0, lifespanMs: 230, baseSize: rand(24, 34),
     });
 
-    // Lingering center sparks — slow, long-lived, hover near origin
-    const lingerCount = 8;
-    for (let i = 0; i < lingerCount; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const speed = rand(0.3, 1.2);          // very slow
-      fireworks.push({
-        kind: 'spark',
-        x: rocket.x, y: rocket.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - 0.2,
-        hue: baseHue,
-        saturation: 40,
-        lightness: 85,                        // bright
-        trail: [],
-        ageMs: 0,
-        lifespanMs: rand(2000, 3000),         // longer than others
-      });
-    }
+    const layers = [
+      { count: 10, speed: [0.28, 1.15], sat: 38, light: 88, life: [2100, 3100], bias: -0.20, hue: baseHue, random: true },
+      { count: 18, speed: [5.0, 6.8], sat: 34, light: 92, life: [850, 1350], bias: -0.30, hue: baseHue },
+      { count: 42, speed: [3.5, 5.0], sat: 86, light: 70, life: [1350, 2100], bias: -0.40, hue: baseHue },
+      { count: 54, speed: [2.1, 3.25], sat: 74, light: 56, life: [1850, 2700], bias: -0.52, hue: baseHue },
+      { count: 14, speed: [2.7, 4.35], sat: 82, light: 70, life: [1100, 1800], bias: -0.38, hue: accentHue, random: true },
+    ];
 
-    // Inner core — bright, fast, hot white-yellow
-    const coreCount = 15;
-    for (let i = 0; i < coreCount; i++) {
-      const angle = (i / coreCount) * Math.PI * 2 + rand(-0.15, 0.15);
-      const speed = rand(5.0, 6.5);
-      fireworks.push({
-        kind: 'spark',
-        x: rocket.x, y: rocket.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - 0.3,
-        hue: baseHue,
-        saturation: 30,           // low saturation = closer to white
-        lightness: 90,            // very bright
-        trail: [],
-        ageMs: 0,
-        lifespanMs: rand(900, 1400),
-      });
-    }
-
-    // Middle ring — base hue, medium density
-    const midCount = 35;
-    for (let i = 0; i < midCount; i++) {
-      const angle = (i / midCount) * Math.PI * 2 + rand(-0.1, 0.1);
-      const speed = rand(3.5, 4.8);
-      fireworks.push({
-        kind: 'spark',
-        x: rocket.x, y: rocket.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - 0.4,
-        hue: baseHue,
-        saturation: 85,
-        lightness: 70,
-        trail: [],
-        ageMs: 0,
-        lifespanMs: rand(1400, 2000),
-      });
-    }
-
-    // Outer ring — slower, longer trails, slightly desaturated
-    const outerCount = 40;
-    for (let i = 0; i < outerCount; i++) {
-      const angle = (i / outerCount) * Math.PI * 2 + rand(-0.08, 0.08);
-      const speed = rand(2.2, 3.2);
-      fireworks.push({
-        kind: 'spark',
-        x: rocket.x, y: rocket.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - 0.5,    // longer upward bias for better trails
-        hue: baseHue,
-        saturation: 75,
-        lightness: 55,
-        trail: [],
-        ageMs: 0,
-        lifespanMs: rand(1800, 2600),
-      });
-    }
-
-    // Accent sparks — complementary color, few but eye-catching
-    const accentCount = 12;
-    for (let i = 0; i < accentCount; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const speed = rand(2.8, 4.2);
-      fireworks.push({
-        kind: 'spark',
-        x: rocket.x, y: rocket.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - 0.4,
-        hue: accentHue,
-        saturation: 80,
-        lightness: 68,
-        trail: [],
-        ageMs: 0,
-        lifespanMs: rand(1200, 1800),
-      });
+    for (const layer of layers) {
+      for (let i = 0; i < layer.count; i++) {
+        const baseAngle = layer.random ? Math.random() * Math.PI * 2 : (i / layer.count) * Math.PI * 2;
+        const angle = baseAngle + rand(-0.09, 0.09);
+        const speed = rand(layer.speed[0], layer.speed[1]);
+        fireworks.push({
+          kind: 'spark',
+          x: rocket.x,
+          y: rocket.y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed + layer.bias,
+          hue: layer.hue,
+          saturation: layer.sat,
+          lightness: layer.light,
+          trail: [],
+          ageMs: 0,
+          lifespanMs: rand(layer.life[0], layer.life[1]),
+          glitter: Math.random() < 0.16,
+        });
+      }
     }
   }
 
   function updateFireworks(dt) {
-    // Launch scheduled shows
     const now = performance.now();
     while (fireworkShowQueue.length > 0 && fireworkShowQueue[0].atMs <= now) {
       const shot = fireworkShowQueue.shift();
@@ -687,384 +828,461 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     for (let i = fireworks.length - 1; i >= 0; i--) {
       const f = fireworks[i];
       f.ageMs += dt;
-
-      // Record trail (last 6 positions)
       f.trail.push({ x: f.x, y: f.y });
-      if (f.trail.length > 6) f.trail.shift();
+      const maxTrail = f.kind === 'rocket' ? 12 : 8;
+      if (f.trail.length > maxTrail) f.trail.shift();
 
       if (f.kind === 'rocket') {
-        // Physics: upward with slight gravity
-        f.vy += 0.05 * dt * 0.016;      // light gravity pulls down
+        f.vy += 0.052 * dt * 0.016;
         f.x += f.vx * dt * 0.06;
         f.y += f.vy * dt * 0.06;
-        // Explode when reaching target altitude or velocity reversed
         if (f.y <= f.targetY || f.vy > 0) {
           explodeFirework(f);
           fireworks.splice(i, 1);
         }
       } else if (f.kind === 'flash') {
-        // Flash stays in place, just ages out
-        if (f.ageMs >= f.lifespanMs) {
-          fireworks.splice(i, 1);
-        }
-      } else if (f.kind === 'spark') {
-        // Physics: gravity + slight air drag
-        f.vy += 0.12 * dt * 0.016;
-        f.vx *= 0.98;
-        f.vy *= 0.98;
+        if (f.ageMs >= f.lifespanMs) fireworks.splice(i, 1);
+      } else {
+        f.vy += 0.13 * dt * 0.016;
+        const drag = Math.pow(0.982, dt * 0.06);
+        f.vx *= drag;
+        f.vy *= drag;
         f.x += f.vx * dt * 0.06;
         f.y += f.vy * dt * 0.06;
-        // Remove when aged out
-        if (f.ageMs >= f.lifespanMs) {
-          fireworks.splice(i, 1);
-        }
+        if (f.ageMs >= f.lifespanMs) fireworks.splice(i, 1);
       }
     }
   }
 
   function renderFireworks() {
+    if (fireworks.length === 0) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'round';
+
     for (const f of fireworks) {
-      let alpha = 1;
-      let r = 1.5;
-
       if (f.kind === 'flash') {
-        // Flash: brief bright burst at center, shrinking and fading fast
-        const t = f.ageMs / f.lifespanMs;    // 0 to 1
-        alpha = Math.max(0, 1 - t);
-        const size = f.baseSize * (1 - t * 0.4);
-
-        // Soft radial gradient glow (neon-like, no hard edges)
-        const grad = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, size * 2.2);
-        grad.addColorStop(0, `hsla(${f.hue}, 30%, 95%, ${alpha * 0.9})`);
-        grad.addColorStop(0.3, `hsla(${f.hue}, 50%, 75%, ${alpha * 0.45})`);
-        grad.addColorStop(1, `hsla(${f.hue}, 60%, 50%, 0)`);
+        const t = clamp(f.ageMs / f.lifespanMs, 0, 1);
+        const alpha = 1 - t;
+        const size = f.baseSize * (1 - t * 0.35);
+        const grad = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, size * 2.35);
+        grad.addColorStop(0, `hsla(${f.hue}, 35%, 98%, ${alpha * 0.95})`);
+        grad.addColorStop(0.28, `hsla(${f.hue}, 62%, 76%, ${alpha * 0.42})`);
+        grad.addColorStop(1, `hsla(${f.hue}, 80%, 45%, 0)`);
         ctx.globalAlpha = 1;
         ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.arc(f.x, f.y, size * 2.2, 0, Math.PI * 2);
+        ctx.arc(f.x, f.y, size * 2.35, 0, Math.PI * 2);
         ctx.fill();
-
-        // Bright white core
         ctx.globalAlpha = alpha;
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = '#fff';
         ctx.beginPath();
-        ctx.arc(f.x, f.y, size * 0.4, 0, Math.PI * 2);
+        ctx.arc(f.x, f.y, size * 0.36, 0, Math.PI * 2);
         ctx.fill();
         continue;
       }
 
-      if (f.kind === 'rocket') {
-        // Bright ascending rocket
-        alpha = 1;
-        r = 1.8;
-      } else {
-        // Spark fading out with age
-        alpha = Math.max(0, 1 - f.ageMs / f.lifespanMs);
-        // Size shrinks slightly
-        r = 1.4 * (0.6 + 0.4 * alpha);
-      }
-
-      // Use per-spark saturation/lightness if defined (multi-layer fireworks)
+      const alpha = f.kind === 'rocket' ? 1 : Math.max(0, 1 - f.ageMs / f.lifespanMs);
       const sat = f.saturation != null ? f.saturation : 80;
-      const light = f.lightness != null ? f.lightness : 60;
-      const glowColor = `hsl(${f.hue}, ${sat}%, ${Math.max(40, light - 15)}%)`;
-      const coreColor = `hsl(${f.hue}, ${sat}%, ${Math.min(95, light + 10)}%)`;
+      const light = f.lightness != null ? f.lightness : 64;
+      const trailColor = `hsla(${f.hue}, ${sat}%, ${Math.max(38, light - 13)}%, ${alpha})`;
+      const coreColor = `hsla(${f.hue}, ${sat}%, ${Math.min(96, light + 12)}%, ${alpha})`;
+      const r = (f.kind === 'rocket' ? 1.75 : 1.35) * (0.62 + 0.38 * alpha);
 
-      // Trail (fading tail)
-      for (let i = 0; i < f.trail.length - 1; i++) {
-        const t = f.trail[i];
-        const trailAlpha = alpha * (i / f.trail.length) * 0.6;
-        ctx.globalAlpha = trailAlpha;
-        ctx.fillStyle = glowColor;
-        ctx.beginPath();
-        ctx.arc(t.x, t.y, r * 0.5, 0, Math.PI * 2);
-        ctx.fill();
+      if (f.trail.length > 1) {
+        for (let i = 1; i < f.trail.length; i++) {
+          const a = alpha * (i / f.trail.length) * (f.kind === 'rocket' ? 0.62 : 0.34);
+          ctx.globalAlpha = a;
+          ctx.strokeStyle = trailColor;
+          ctx.lineWidth = f.kind === 'rocket' ? 1.8 : 1.15;
+          ctx.beginPath();
+          ctx.moveTo(f.trail[i - 1].x, f.trail[i - 1].y);
+          ctx.lineTo(f.trail[i].x, f.trail[i].y);
+          ctx.stroke();
+        }
       }
 
-      // Glow halo
-      ctx.globalAlpha = alpha * 0.4;
-      ctx.fillStyle = glowColor;
+      ctx.globalAlpha = alpha * 0.36;
+      ctx.fillStyle = trailColor;
       ctx.beginPath();
-      ctx.arc(f.x, f.y, r * 3.5, 0, Math.PI * 2);
+      ctx.arc(f.x, f.y, r * 4.3, 0, Math.PI * 2);
       ctx.fill();
 
-      // Core
       ctx.globalAlpha = alpha;
       ctx.fillStyle = coreColor;
       ctx.beginPath();
       ctx.arc(f.x, f.y, r, 0, Math.PI * 2);
       ctx.fill();
 
-      // White sparkle center (only for bright layers)
-      if (light >= 65) {
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = '#ffffff';
+      if (light >= 67 || f.glitter) {
+        const blink = f.glitter ? (0.45 + 0.55 * Math.sin(f.ageMs * 0.035)) : 1;
+        ctx.globalAlpha = alpha * blink;
+        ctx.fillStyle = '#fff';
         ctx.beginPath();
-        ctx.arc(f.x, f.y, r * 0.5, 0, Math.PI * 2);
+        ctx.arc(f.x, f.y, r * 0.48, 0, Math.PI * 2);
         ctx.fill();
       }
     }
-    ctx.globalAlpha = 1;
+    ctx.restore();
   }
 
   function triggerFireworkShow() {
-    // Pick 4 distinct hues randomly from palette
-    const palette = FW_PALETTE_HUES.slice();
-    // Shuffle
-    for (let i = palette.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [palette[i], palette[j]] = [palette[j], palette[i]];
-    }
+    const palette = shuffle(FW_PALETTE_HUES.slice());
     const hues = palette.slice(0, 4);
-
-    // Schedule 4 shots with overlapping timing
     const now = performance.now();
-    const delays = [0, 1800, 3400, 5000];   // total ~5-7 seconds
-    for (let i = 0; i < 4; i++) {
-      fireworkShowQueue.push({ atMs: now + delays[i], hue: hues[i] });
-    }
+    const delays = [0, 1550, 3050, 4550];
+    for (let i = 0; i < hues.length; i++) fireworkShowQueue.push({ atMs: now + delays[i], hue: hues[i] });
+    showToast('fireworks');
   }
 
-  // ============================================================
-  // Formation mode — assign each particle a target point in a shape
-  // ============================================================
-  let formationMs = 0;                  // remaining formation time
-  const FORMATION_DURATION = 15000;     // 15 seconds: ~4s travel, ~11s hold
-
+  
   function generateCirclePoints(count, cx, cy, radius) {
     const pts = [];
-    for (let i = 0; i < count; i++) {
-      const a = (i / count) * Math.PI * 2;
-      pts.push({ x: cx + Math.cos(a) * radius, y: cy + Math.sin(a) * radius });
+    const n = Math.max(1, count);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const wobble = 1 + Math.sin(a * 3.0) * 0.012;
+      pts.push({ x: cx + Math.cos(a) * radius * wobble, y: cy + Math.sin(a) * radius * wobble });
     }
     return pts;
   }
 
   function generateHeartPoints(count, cx, cy, scale) {
-    // Heart parametric curve
     const pts = [];
-    for (let i = 0; i < count; i++) {
-      const t = (i / count) * Math.PI * 2;
+    const n = Math.max(1, count);
+    for (let i = 0; i < n; i++) {
+      const t = (i / n) * Math.PI * 2;
       const x = 16 * Math.pow(Math.sin(t), 3);
-      const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
-      pts.push({ x: cx + x * scale, y: cy - y * scale });   // flip Y
+      const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+      pts.push({ x: cx + x * scale, y: cy - y * scale });
     }
     return pts;
   }
 
   function generateStarPoints(count, cx, cy, outerR) {
-    // 5-pointed star: alternate outer/inner points, interpolate between them
-    const points = 5;
-    const innerR = outerR * 0.4;
     const vertices = [];
-    for (let i = 0; i < points * 2; i++) {
-      const a = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2;
-      const r = (i % 2 === 0) ? outerR : innerR;
+    const innerR = outerR * 0.42;
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+      const r = i % 2 === 0 ? outerR : innerR;
       vertices.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r });
     }
-    // Distribute count points along the polygon edges
+
+    const edgeLengths = [];
+    let total = 0;
+    for (let i = 0; i < vertices.length; i++) {
+      const a = vertices[i], b = vertices[(i + 1) % vertices.length];
+      const len = Math.hypot(b.x - a.x, b.y - a.y);
+      edgeLengths.push(len);
+      total += len;
+    }
+
     const pts = [];
-    const edges = vertices.length;
-    const perEdge = Math.ceil(count / edges);
-    for (let e = 0; e < edges; e++) {
-      const v0 = vertices[e];
-      const v1 = vertices[(e + 1) % edges];
-      for (let j = 0; j < perEdge; j++) {
-        const t = j / perEdge;
-        pts.push({ x: v0.x + (v1.x - v0.x) * t, y: v0.y + (v1.y - v0.y) * t });
+    for (let e = 0; e < vertices.length; e++) {
+      const a = vertices[e], b = vertices[(e + 1) % vertices.length];
+      const edgeCount = Math.max(1, Math.round(count * edgeLengths[e] / total));
+      for (let j = 0; j < edgeCount; j++) {
+        const t = j / edgeCount;
+        pts.push({ x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) });
       }
     }
+    while (pts.length < count) pts.push(pts[pts.length % Math.max(1, pts.length)] || { x: cx, y: cy });
     return pts.slice(0, count);
   }
 
-  // Render text to an offscreen canvas, sample bright pixels as points
-  function generateTextPoints(text, cx, cy, maxWidth, maxHeight) {
-    if (!text) return [];
-    // Sanitize: cap length
-    const safe = String(text).slice(0, 20);
+  function blueNoisePick(candidates, desired, minDist) {
+    if (candidates.length <= desired) return shuffle(candidates.slice()).slice(0, desired);
 
-    // Offscreen canvas sized to the display area
-    const off = document.createElement('canvas');
-    const targetW = Math.floor(maxWidth);
-    const targetH = Math.floor(maxHeight);
-    off.width = targetW;
-    off.height = targetH;
-    const octx = off.getContext('2d');
+    const selected = [];
+    const used = new Set();
+    const passes = [minDist, minDist * 0.72, minDist * 0.48, 0];
+    const order = shuffle(candidates.map((_, i) => i));
 
-    // Pick a font size that fits
-    let fontSize = Math.floor(targetH * 0.9);
-    octx.font = `bold ${fontSize}px ui-sans-serif, system-ui, sans-serif`;
-    let metrics = octx.measureText(safe);
-    while (metrics.width > targetW * 0.95 && fontSize > 12) {
-      fontSize -= 2;
-      octx.font = `bold ${fontSize}px ui-sans-serif, system-ui, sans-serif`;
-      metrics = octx.measureText(safe);
-    }
-    // Draw STROKE (outline) rather than fill — keeps sample count manageable
-    // and emphasizes the letter shape
-    octx.fillStyle = '#000';
-    octx.fillRect(0, 0, targetW, targetH);
-    octx.strokeStyle = '#fff';
-    octx.lineWidth = Math.max(2, Math.floor(fontSize / 30));
-    octx.lineJoin = 'round';
-    octx.lineCap = 'round';
-    octx.textAlign = 'center';
-    octx.textBaseline = 'middle';
-    octx.strokeText(safe, targetW / 2, targetH / 2);
+    for (const passDist of passes) {
+      if (selected.length >= desired) break;
+      const cell = Math.max(1, passDist || 1);
+      const grid = new Map();
+      if (passDist > 0) {
+        for (const p of selected) {
+          const gx = Math.floor(p.x / cell), gy = Math.floor(p.y / cell);
+          const key = gx + ',' + gy;
+          if (!grid.has(key)) grid.set(key, []);
+          grid.get(key).push(p);
+        }
+      }
 
-    // Sample pixels with wider stride — outline is thin, and we want fewer points
-    const img = octx.getImageData(0, 0, targetW, targetH);
-    const data = img.data;
-    const brightPx = [];
-    const step = 3;
-    for (let y = 0; y < targetH; y += step) {
-      for (let x = 0; x < targetW; x += step) {
-        const i = (y * targetW + x) * 4;
-        if (data[i] > 128) {
-          brightPx.push({ x: x + (cx - targetW / 2), y: y + (cy - targetH / 2) });
+      for (const idx of order) {
+        if (selected.length >= desired) break;
+        if (used.has(idx)) continue;
+        const c = candidates[idx];
+        let ok = true;
+        if (passDist > 0) {
+          const gx = Math.floor(c.x / cell), gy = Math.floor(c.y / cell);
+          for (let yy = gy - 1; yy <= gy + 1 && ok; yy++) {
+            for (let xx = gx - 1; xx <= gx + 1 && ok; xx++) {
+              const bucket = grid.get(xx + ',' + yy);
+              if (!bucket) continue;
+              for (const p of bucket) {
+                if (dist2(c.x, c.y, p.x, p.y) < passDist * passDist) { ok = false; break; }
+              }
+            }
+          }
+        }
+        if (ok) {
+          selected.push(c);
+          used.add(idx);
+          if (passDist > 0) {
+            const gx = Math.floor(c.x / cell), gy = Math.floor(c.y / cell);
+            const key = gx + ',' + gy;
+            if (!grid.has(key)) grid.set(key, []);
+            grid.get(key).push(c);
+          }
         }
       }
     }
-    // Shuffle to break up raster-scan order, so stride-sampling covers the whole shape
-    for (let i = brightPx.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [brightPx[i], brightPx[j]] = [brightPx[j], brightPx[i]];
-    }
-    return brightPx;
+
+    return selected.slice(0, desired);
   }
 
-  // Assign target points to particles.
-  // Strategy: TARGET-first greedy — each target picks its nearest unassigned particle.
-  // This ensures every target point gets filled (important for text readability),
-  // even if particles are spatially clustered when the formation is triggered.
+  function generateTextPoints(text, cx, cy, maxWidth, maxHeight, desiredCount) {
+    const safe = safeTextSlice(text, 20);
+    if (!safe) return [];
+
+    const scale = Math.min(2.5, Math.max(1.6, DPR));
+    const targetW = Math.max(80, Math.floor(maxWidth));
+    const targetH = Math.max(60, Math.floor(maxHeight));
+    const off = document.createElement('canvas');
+    off.width = Math.floor(targetW * scale);
+    off.height = Math.floor(targetH * scale);
+    const octx = off.getContext('2d');
+    octx.setTransform(scale, 0, 0, scale, 0, 0);
+
+    const fontFamily = '"Hiragino Sans", "Yu Gothic", "Meiryo", ui-sans-serif, system-ui, sans-serif';
+    let fontSize = Math.floor(targetH * (safe.length <= 2 ? 0.74 : 0.68));
+    octx.font = `800 ${fontSize}px ${fontFamily}`;
+    let metrics = octx.measureText(safe);
+    while ((metrics.width > targetW * 0.94 || fontSize > targetH * 0.78) && fontSize > 14) {
+      fontSize -= 2;
+      octx.font = `800 ${fontSize}px ${fontFamily}`;
+      metrics = octx.measureText(safe);
+    }
+
+    octx.clearRect(0, 0, targetW, targetH);
+    octx.fillStyle = '#000';
+    octx.fillRect(0, 0, targetW, targetH);
+    octx.textAlign = 'center';
+    octx.textBaseline = 'middle';
+    octx.lineJoin = 'round';
+    octx.lineCap = 'round';
+
+    octx.strokeStyle = '#fff';
+    octx.lineWidth = Math.max(2, fontSize * 0.065);
+    octx.strokeText(safe, targetW / 2, targetH / 2 + fontSize * 0.02);
+    octx.fillStyle = '#fff';
+    octx.fillText(safe, targetW / 2, targetH / 2 + fontSize * 0.02);
+
+    const img = octx.getImageData(0, 0, off.width, off.height);
+    const data = img.data;
+    const candidates = [];
+    const desired = Math.max(1, desiredCount);
+    const sampleStep = clamp(Math.floor(Math.sqrt((off.width * off.height) / (desired * 130))), 2, 9);
+
+    for (let y = 0; y < off.height; y += sampleStep) {
+      for (let x = 0; x < off.width; x += sampleStep) {
+        const i = (y * off.width + x) * 4;
+        const a = data[i];
+        if (a > 92) {
+          const jitter = sampleStep * 0.36;
+          candidates.push({
+            x: x / scale + (cx - targetW / 2) + rand(-jitter, jitter) / scale,
+            y: y / scale + (cy - targetH / 2) + rand(-jitter, jitter) / scale,
+          });
+        }
+      }
+    }
+
+    if (candidates.length === 0) return [];
+    const minDist = clamp(Math.sqrt((targetW * targetH) / desired) * 0.32, 2.2, 10);
+    return blueNoisePick(candidates, desired, minDist);
+  }
+
+  function spatialSort(points) {
+    if (!points || points.length === 0) return [];
+    let cx = 0, cy = 0;
+    for (const p of points) { cx += p.x; cy += p.y; }
+    cx /= points.length; cy /= points.length;
+    return points.slice().sort((a, b) => {
+      const aa = Math.atan2(a.y - cy, a.x - cx);
+      const ab = Math.atan2(b.y - cy, b.x - cx);
+      if (Math.abs(aa - ab) > 0.0001) return aa - ab;
+      return Math.hypot(a.x - cx, a.y - cy) - Math.hypot(b.x - cx, b.y - cy);
+    });
+  }
+
   function assignTargets(pts) {
     const livePs = particles.filter(p => p.lifePhase < 2);
-    // Clear any existing targets
     for (const p of particles) p.target = null;
+    if (pts.length === 0 || livePs.length === 0) return;
 
+    const targets = spatialSort(pts);
     const unassigned = livePs.slice();
-    // First pass: each target finds its nearest unassigned particle
-    for (const t of pts) {
+    const assigned = [];
+
+    for (const t of targets) {
       if (unassigned.length === 0) break;
       let bestIdx = 0, bestD = Infinity;
       for (let i = 0; i < unassigned.length; i++) {
-        const d = (unassigned[i].x - t.x) ** 2 + (unassigned[i].y - t.y) ** 2;
+        const p = unassigned[i];
+        const d = dist2(p.x, p.y, t.x, t.y);
         if (d < bestD) { bestD = d; bestIdx = i; }
       }
-      unassigned[bestIdx].target = { x: t.x, y: t.y };
+      const p = unassigned[bestIdx];
+      assigned.push({ p, t, d: Math.sqrt(bestD) });
       unassigned.splice(bestIdx, 1);
     }
-    // Remaining particles (when particle count > target count):
-    // distribute to existing points so they stay with the shape (repulsion will spread them)
-    if (unassigned.length > 0 && pts.length > 0) {
+
+    if (unassigned.length > 0) {
       for (let i = 0; i < unassigned.length; i++) {
-        const t = pts[i % pts.length];
-        unassigned[i].target = { x: t.x, y: t.y };
+        const t = targets[i % targets.length];
+        const p = unassigned[i];
+        assigned.push({ p, t, d: Math.hypot(p.x - t.x, p.y - t.y) });
       }
+    }
+
+    assigned.sort((a, b) => a.d - b.d);
+    const maxDist = assigned.reduce((m, a) => Math.max(m, a.d), 1);
+    for (let i = 0; i < assigned.length; i++) {
+      const { p, t, d } = assigned[i];
+      const dx = t.x - p.x;
+      const dy = t.y - p.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const normalSign = Math.random() < 0.5 ? -1 : 1;
+      const wave = i / Math.max(1, assigned.length - 1);
+      const distNorm = clamp(d / maxDist, 0, 1);
+      p.target = {
+        x: t.x,
+        y: t.y,
+        startX: p.x,
+        startY: p.y,
+        startDist: d,
+        delayMs: 10 + wave * 110 + rand(0, 55),
+        travelMs: clamp(880 + d * 4.2 + wave * 260 + rand(-80, 140), 900, 2550),
+        arc: clamp(Math.sqrt(d) * (1.2 + distNorm * 0.75), 6, Math.min(W, H) * 0.075) * normalSign,
+        arcNx: -dy / len,
+        arcNy: dx / len,
+        seed: rand(0, Math.PI * 2),
+      };
     }
   }
 
   function startFormation(kind, extra) {
     const cx = W / 2, cy = H / 2;
-    const size = Math.min(W, H) * 0.32;
-    let pts;
-    if (kind === 'circle') pts = generateCirclePoints(Math.max(12, particles.length), cx, cy, size);
-    else if (kind === 'heart') pts = generateHeartPoints(Math.max(16, particles.length), cx, cy, size / 16);
-    else if (kind === 'star') pts = generateStarPoints(Math.max(16, particles.length), cx, cy, size);
-    else if (kind === 'text') {
-      pts = generateTextPoints(extra, cx, cy, W * 0.85, H * 0.7);
+    const minDim = Math.min(W, H);
+    const shapeSize = minDim * 0.32;
+    let pts = [];
+
+    if (kind === 'text') {
+      const safe = safeTextSlice(extra, 20);
+      if (!safe) return;
+      const minCount = clamp(120 + Array.from(safe).length * 34, 160, 520);
+      ensureParticleCount(minCount, cx, cy);
+      const count = Math.min(liveCount(), COUNT_MAX);
+      pts = generateTextPoints(safe, cx, cy, W * 0.86, H * 0.70, Math.max(80, Math.floor(count * 0.96)));
       if (pts.length === 0) return;
-      // Downsample so we never have more targets than particles (avoids gaps).
-      // Use stride-based (evenly-spaced) sampling — this ensures sparse particles
-      // still cover the entire letter shape, just at lower density.
-      const liveCount = particles.filter(p => p.lifePhase < 2).length;
-      const target = Math.max(30, Math.floor(liveCount * 0.95));
-      if (pts.length > target) {
-        const kept = [];
-        const stride = pts.length / target;
-        for (let i = 0; i < target; i++) {
-          kept.push(pts[Math.floor(i * stride)]);
-        }
-        pts = kept;
-      }
+      showToast(`text: ${safe}`);
+    } else if (kind === 'circle') {
+      ensureParticleCount(clamp(Math.floor(minDim * 0.42), 150, 360), cx, cy);
+      pts = generateCirclePoints(liveCount(), cx, cy, shapeSize);
+      showToast('circle');
+    } else if (kind === 'heart') {
+      ensureParticleCount(clamp(Math.floor(minDim * 0.48), 180, 420), cx, cy);
+      pts = generateHeartPoints(liveCount(), cx, cy, shapeSize / 16);
+      showToast('heart');
+    } else if (kind === 'star') {
+      ensureParticleCount(clamp(Math.floor(minDim * 0.46), 170, 400), cx, cy);
+      pts = generateStarPoints(liveCount(), cx, cy, shapeSize);
+      showToast('star');
+    } else {
+      return;
     }
-    else return;
+
     assignTargets(pts);
     mood = 'formation';
     formationMs = FORMATION_DURATION;
     moodTimerMs = 0;
     moodDurationMs = FORMATION_DURATION;
+    postFormationSoftMs = 0;
+    msSinceExcitingEvent = 0;
   }
 
-  // ============================================================
-  // Color shift (hue)
-  // ============================================================
-  // Palette of pleasant hues: teal, blue, violet, magenta, amber, green.
-  const PALETTE_HUES = [160, 200, 230, 280, 320, 40, 120];
-
+  
   function scheduleNextHueShift() {
-    hueShiftCdMs = rand(60000, 180000);    // 1-3 minutes
+    hueShiftCdMs = rand(60000, 180000);
   }
 
   function shiftHue() {
-    const current = hueCurrent;
     let next;
-    do { next = pick(PALETTE_HUES); } while (Math.abs(next - current) < 20 && PALETTE_HUES.length > 1);
+    do { next = pick(PALETTE_HUES); } while (Math.abs(shortestHueDiff(next, hueCurrent)) < 20 && PALETTE_HUES.length > 1);
     hueTarget = next;
   }
 
   function updateHue(dt) {
-    if (Math.abs(hueCurrent - hueTarget) < 0.5) {
-      hueCurrent = hueTarget;
-    } else {
-      // smooth interpolation, handling wrap-around (shortest path)
-      let diff = hueTarget - hueCurrent;
-      if (diff > 180) diff -= 360;
-      if (diff < -180) diff += 360;
-      hueCurrent += diff * Math.min(1, dt / 3000);
-      hueCurrent = (hueCurrent + 360) % 360;
-    }
+    const diff = shortestHueDiff(hueTarget, hueCurrent);
+    if (Math.abs(diff) < 0.45) hueCurrent = hueTarget;
+    else hueCurrent = (hueCurrent + diff * Math.min(1, dt / 2800) + 360) % 360;
     document.documentElement.style.setProperty('--hue-current', String(Math.round(hueCurrent)));
   }
 
-  // ============================================================
-  // Simulation tick
-  // ============================================================
-  function update(dt) {
-    // Mood cycling
-    moodTimerMs += dt;
-    if (moodTimerMs >= moodDurationMs) newMoodCycle();
-    if (postFormationSoftMs > 0) postFormationSoftMs -= dt;
+  
+  function buildParticleGrid(list, cell) {
+    const grid = new Map();
+    for (const p of list) {
+      const gx = Math.floor(p.x / cell);
+      const gy = Math.floor(p.y / cell);
+      const key = gx + ',' + gy;
+      if (!grid.has(key)) grid.set(key, []);
+      grid.get(key).push(p);
+    }
+    return grid;
+  }
 
-    // Idle bonus: if nothing exciting has happened for a while during drift,
-    // force an interesting mood to keep the mascot lively
-    msSinceExcitingEvent += dt;
-    if (mood === 'drift' && msSinceExcitingEvent > 45000) {
-      // Force an exciting mood (not drift/cluster/disperse which are calm)
-      const excitingMoods = ['orbit', 'follow', 'wave', 'breathe', 'pulse', 'radial', 'gravity'];
-      mood = excitingMoods[Math.floor(Math.random() * excitingMoods.length)];
-      moodTimerMs = 0;
-      moodDurationMs = rand(12000, 20000);
-      msSinceExcitingEvent = 0;
-      // Initialize mood-specific state
-      if (mood === 'orbit') orbitDirection = Math.random() < 0.5 ? 1 : -1;
-      else if (mood === 'wave') waveDirection = Math.random() < 0.5 ? 'horizontal' : 'vertical';
-      else if (mood === 'follow') {
-        const live = particles.filter(p => p.lifePhase < 2);
-        if (live.length > 0) leaderId = live[Math.floor(Math.random() * live.length)].id;
-        else mood = 'drift';
-      } else if (mood === 'gravity') {
-        gravityWell = { x: rand(W * 0.25, W * 0.75), y: rand(H * 0.25, H * 0.75) };
+  function nearbyBuckets(grid, p, cell) {
+    const gx = Math.floor(p.x / cell);
+    const gy = Math.floor(p.y / cell);
+    const buckets = [];
+    for (let yy = gy - 1; yy <= gy + 1; yy++) {
+      for (let xx = gx - 1; xx <= gx + 1; xx++) {
+        const bucket = grid.get(xx + ',' + yy);
+        if (bucket) buckets.push(bucket);
       }
     }
+    return buckets;
+  }
 
-    // Mouse idle tracker
+  
+  function update(dt) {
+    moodTimerMs += dt;
+    if (moodTimerMs >= moodDurationMs) newMoodCycle();
+    if (mood === 'formation') formationMs = Math.max(0, FORMATION_DURATION - moodTimerMs);
+    if (postFormationSoftMs > 0) postFormationSoftMs -= dt;
+
+    msSinceExcitingEvent += dt;
+    if (mood === 'drift' && msSinceExcitingEvent > 44000 && !PREFERS_REDUCED_MOTION) {
+      const excitingMoods = ['orbit', 'follow', 'wave', 'breathe', 'pulse', 'radial', 'gravity', 'constellation'];
+      mood = pick(excitingMoods);
+      moodTimerMs = 0;
+      moodDurationMs = rand(12000, 20500);
+      msSinceExcitingEvent = 0;
+      const live = particles.filter(p => p.lifePhase < 2);
+      if (mood === 'orbit') orbitDirection = Math.random() < 0.5 ? 1 : -1;
+      else if (mood === 'wave') waveDirection = Math.random() < 0.5 ? 'horizontal' : 'vertical';
+      else if (mood === 'follow') leaderId = live.length > 0 ? pick(live).id : 0;
+      else if (mood === 'gravity') gravityWell = { x: rand(W * 0.25, W * 0.75), y: rand(H * 0.25, H * 0.75) };
+    }
+
     if (mousePos) mouseIdleMs += dt;
-
-    // Fireworks (independent of main particle system)
     updateFireworks(dt);
 
-    // Hue shift cooldown (spontaneous color change)
     hueShiftCdMs -= dt;
     if (hueShiftCdMs <= 0) {
       shiftHue();
@@ -1072,341 +1290,468 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     }
     updateHue(dt);
 
-    // Time-of-day base hue influence (gentle, applied as target modulation)
-    // morning: 200 (cool blue), noon: 160 (teal), evening: 320 (magenta), night: 280 (violet)
-    const hour = new Date().getHours();
-    let dayHue;
-    if (hour < 6) dayHue = 280;           // late night
-    else if (hour < 10) dayHue = 200;     // morning
-    else if (hour < 16) dayHue = 160;     // day
-    else if (hour < 20) dayHue = 40;      // evening (warm)
-    else dayHue = 280;                    // night
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.phaseMs += dt;
+      if (p.lifePhase === 0 && p.phaseMs >= 2100) {
+        p.lifePhase = 1;
+        p.phaseMs = 0;
+      } else if (p.lifePhase === 2 && p.phaseMs >= 2300) {
+        particles.splice(i, 1);
+      }
+    }
 
-    // Slow drift toward dayHue — very weak influence, just a nudge
-    // (we don't overwrite explicit palette shifts)
-    // Currently disabled — palette picks already cover the spectrum.
-    // Could be enabled as optional feature later.
-
-    // Birth/death cycle
     lastBirthMs += dt;
     if (lastBirthMs >= nextBirthInMs) {
       lastBirthMs = 0;
-      nextBirthInMs = rand(3000, 12000);
-      // Randomly add or remove, keeping within [MIN, MAX]
-      const alive = particles.filter(p => p.lifePhase < 2).length;
-      const action = Math.random() < 0.5 ? 'birth' : 'death';
-      if (action === 'birth' && alive < COUNT_MAX) {
-        const p = spawnParticle();
-        particles.push(p);
-      } else if (action === 'death' && alive > COUNT_MIN) {
-        // Pick one to start fading out
-        const candidates = particles.filter(p => p.lifePhase === 1);
-        if (candidates.length > 0) {
-          const victim = candidates[Math.floor(Math.random() * candidates.length)];
-          victim.lifePhase = 2;
-          victim.phaseMs = 0;
+      nextBirthInMs = rand(3600, 12000);
+      const alive = liveCount();
+      if (mood !== 'formation') {
+        const action = Math.random() < 0.55 ? 'birth' : 'death';
+        if (action === 'birth' && alive < COUNT_MAX) {
+          particles.push(spawnParticle({ edge: Math.random() < 0.25 }));
+        } else if (action === 'death' && alive > COUNT_MIN) {
+          const candidates = particles.filter(p => p.lifePhase === 1);
+          if (candidates.length > 0) {
+            const victim = pick(candidates);
+            victim.lifePhase = 2;
+            victim.phaseMs = 0;
+          }
         }
       }
     }
 
-    // Update each particle
-    for (let i = particles.length - 1; i >= 0; i--) {
-      const p = particles[i];
-      p.phaseMs += dt;
+    const live = particles.filter(p => p.lifePhase < 2);
+    let cx = W / 2, cy = H / 2;
+    if (live.length > 0) {
+      cx = 0; cy = 0;
+      for (const p of live) { cx += p.x; cy += p.y; }
+      cx /= live.length; cy /= live.length;
+    }
+    const leader = leaderId ? particles.find(p => p.id === leaderId && p.lifePhase < 2) : null;
+    const repulsionCell = Math.max(18, REPULSION_DIST * 3);
+    const grid = buildParticleGrid(live, repulsionCell);
 
-      // Phase transitions
-      if (p.lifePhase === 0 && p.phaseMs >= 2500) {
-        p.lifePhase = 1;
-        p.phaseMs = 0;
-      } else if (p.lifePhase === 2 && p.phaseMs >= 2500) {
-        particles.splice(i, 1);
-        continue;
-      }
-
-      // Forces
+    for (const p of particles) {
       let fx = 0, fy = 0;
+      const softMul = postFormationSoftMs > 0 ? 0.28 : 1;
+      const formationMode = mood === 'formation' && p.target;
+      const wanderMul = formationMode ? 0.16 : softMul;
 
-      // Wander (reduced during post-formation softness for gentle fade)
-      const wanderMul = postFormationSoftMs > 0 ? 0.3 : 1.0;
-      fx += (Math.random() - 0.5) * 0.06 * wanderMul;
-      fy += (Math.random() - 0.5) * 0.06 * wanderMul;
+      fx += (Math.random() - 0.5) * 0.052 * wanderMul;
+      fy += (Math.random() - 0.5) * 0.052 * wanderMul;
 
-      // Mood-based group force (not during burst — burst is inertia-driven)
       if (mood === 'cluster' || mood === 'disperse') {
-        // Compute centroid of other particles
-        let cx = 0, cy = 0, n = 0;
-        for (const q of particles) {
-          if (q === p) continue;
-          cx += q.x; cy += q.y; n++;
-        }
-        if (n > 0) {
-          cx /= n; cy /= n;
-          const dx = cx - p.x, dy = cy - p.y;
-          const d = Math.hypot(dx, dy) || 1;
-          const sign = mood === 'cluster' ? 1 : -1;
-          const strength = mood === 'cluster' ? 0.08 : 0.04;
-          fx += (dx / d) * sign * strength;
-          fy += (dy / d) * sign * strength;
-        }
+        const dx = cx - p.x, dy = cy - p.y;
+        const d = Math.hypot(dx, dy) || 1;
+        const sign = mood === 'cluster' ? 1 : -1;
+        const strength = mood === 'cluster' ? 0.075 : 0.043;
+        fx += (dx / d) * sign * strength;
+        fy += (dy / d) * sign * strength;
       }
 
-      // Orbit: tangential force around screen center (slow rotation)
       if (mood === 'orbit') {
-        const cx = W / 2, cy = H / 2;
-        const dx = p.x - cx, dy = p.y - cy;
+        const dx = p.x - W / 2, dy = p.y - H / 2;
         const d = Math.hypot(dx, dy) || 1;
-        // Tangential unit vector (perpendicular to radial)
         const tx = -dy / d, ty = dx / d;
-        // Apply tangential force
-        fx += tx * orbitDirection * 0.08;
-        fy += ty * orbitDirection * 0.08;
-        // Slight radial pull to keep particles in orbit band (not too tight, not too wide)
         const idealR = Math.min(W, H) * 0.35;
         const radialPull = (idealR - d) * 0.0008;
-        fx += (dx / d) * radialPull;
-        fy += (dy / d) * radialPull;
+        fx += tx * orbitDirection * 0.08 + (dx / d) * radialPull;
+        fy += ty * orbitDirection * 0.08 + (dy / d) * radialPull;
       }
 
-      // Wave: sinusoidal drift along one axis, phase offset by position
       if (mood === 'wave') {
         const t = moodTimerMs / 1000;
         if (waveDirection === 'horizontal') {
-          // Particles drift in X, with Y-dependent phase
-          fx += Math.sin(t * 1.2 + p.y * 0.015) * 0.15;
-          fy += Math.sin(t * 0.8 + p.x * 0.01) * 0.05;
+          fx += Math.sin(t * 1.18 + p.y * 0.015) * 0.145;
+          fy += Math.sin(t * 0.78 + p.x * 0.01) * 0.052;
         } else {
-          fx += Math.sin(t * 0.8 + p.y * 0.01) * 0.05;
-          fy += Math.sin(t * 1.2 + p.x * 0.015) * 0.15;
+          fx += Math.sin(t * 0.78 + p.y * 0.01) * 0.052;
+          fy += Math.sin(t * 1.18 + p.x * 0.015) * 0.145;
         }
       }
 
-      // Follow: every particle follows the leader
-      if (mood === 'follow' && leaderId !== p.id) {
-        const leader = particles.find(q => q.id === leaderId && q.lifePhase < 2);
-        if (leader) {
+      if (mood === 'follow') {
+        if (leader && leader.id !== p.id) {
           const dx = leader.x - p.x, dy = leader.y - p.y;
           const d = Math.hypot(dx, dy) || 1;
-          // Strong attractor, but less close-range (prevent piling on leader)
           if (d > 20) {
-            fx += (dx / d) * 0.12;
-            fy += (dy / d) * 0.12;
+            fx += (dx / d) * 0.115;
+            fy += (dy / d) * 0.115;
           }
+        } else if (leader && leader.id === p.id) {
+          fx += (Math.random() - 0.5) * 0.38;
+          fy += (Math.random() - 0.5) * 0.38;
         }
       }
-      // Leader itself wanders slightly more energetically
-      if (mood === 'follow' && leaderId === p.id) {
-        fx += (Math.random() - 0.5) * 0.4;
-        fy += (Math.random() - 0.5) * 0.4;
-      }
 
-      // Breathe: oscillate between gathering and spreading
       if (mood === 'breathe') {
         const t = moodTimerMs / 1000;
-        const phase = Math.sin(t * 0.6);      // period ~10 seconds
-        let cx = 0, cy = 0, n = 0;
-        for (const q of particles) {
-          if (q === p) continue;
-          cx += q.x; cy += q.y; n++;
-        }
-        if (n > 0) {
-          cx /= n; cy /= n;
-          const dx = cx - p.x, dy = cy - p.y;
-          const d = Math.hypot(dx, dy) || 1;
-          fx += (dx / d) * phase * 0.06;
-          fy += (dy / d) * phase * 0.06;
-        }
-      }
-
-      // Pulse: no force change — affects rendering only (see render)
-
-      // Radial: outward flow from center
-      if (mood === 'radial') {
-        const cx = W / 2, cy = H / 2;
-        const dx = p.x - cx, dy = p.y - cy;
+        const phase = Math.sin(t * 0.58);
+        const dx = cx - p.x, dy = cy - p.y;
         const d = Math.hypot(dx, dy) || 1;
-        fx += (dx / d) * 0.15;
-        fy += (dy / d) * 0.15;
+        fx += (dx / d) * phase * 0.058;
+        fy += (dy / d) * phase * 0.058;
       }
 
-      // Gravity well: attraction toward specific point
+      if (mood === 'radial') {
+        const dx = p.x - W / 2, dy = p.y - H / 2;
+        const d = Math.hypot(dx, dy) || 1;
+        fx += (dx / d) * 0.145;
+        fy += (dy / d) * 0.145;
+      }
+
       if (mood === 'gravity' && gravityWell) {
         const dx = gravityWell.x - p.x, dy = gravityWell.y - p.y;
-        const d2 = dx*dx + dy*dy;
-        const d = Math.sqrt(d2) || 1;
-        // Inverse-square-ish pull, capped
-        const pull = Math.min(0.4, 2000 / (d2 + 50));
+        const d2v = dx * dx + dy * dy;
+        const d = Math.sqrt(d2v) || 1;
+        const pull = Math.min(0.42, 2100 / (d2v + 80));
         fx += (dx / d) * pull;
         fy += (dy / d) * pull;
       }
 
-      // Mouse awareness: particles near the mouse drift toward it gently
-      if (mousePos && mouseIdleMs < 2000) {
+      if (mousePos && mouseIdleMs < 2200) {
         const dx = mousePos.x - p.x, dy = mousePos.y - p.y;
-        const d2 = dx*dx + dy*dy;
-        if (d2 < 150 * 150) {
-          const d = Math.sqrt(d2) || 1;
-          const str = (1 - d / 150) * 0.08;
+        const d2v = dx * dx + dy * dy;
+        const radius = 160;
+        if (d2v < radius * radius) {
+          const d = Math.sqrt(d2v) || 1;
+          const str = (1 - d / radius) * 0.08;
           fx += (dx / d) * str;
           fy += (dy / d) * str;
         }
       }
 
-      // Formation mode: strong pull toward assigned target point
       let nearTarget = false;
-      if (mood === 'formation' && p.target) {
-        const dx = p.target.x - p.x, dy = p.target.y - p.y;
+      let formationProgress = 1;
+      let formationRemainingDist = 0;
+      if (formationMode) {
+        const target = p.target;
+        const raw = clamp((moodTimerMs - target.delayMs) / target.travelMs, 0, 1);
+        formationProgress = easeInOutCubic(raw);
+        const arcSin = Math.sin(formationProgress * Math.PI);
+        const settle = raw >= 1 ? 1 : 0;
+        const shimmer = raw >= 1 ? Math.sin(moodTimerMs * 0.0016 + target.seed) * 0.34 : 0;
+        const desiredX = lerp(target.startX, target.x, formationProgress) + target.arcNx * target.arc * arcSin + shimmer;
+        const desiredY = lerp(target.startY, target.y, formationProgress) + target.arcNy * target.arc * arcSin + Math.cos(moodTimerMs * 0.0014 + target.seed) * 0.28 * settle;
+        const dx = desiredX - p.x;
+        const dy = desiredY - p.y;
         const d = Math.hypot(dx, dy) || 1;
-        // Strong pull, proportional to distance (spring-like)
-        // Strengthened from 0.25 to 0.5 to overcome repulsion at crowded target points
-        const pullStrength = 0.5;
-        fx += dx * pullStrength * 0.02;
-        fy += dy * pullStrength * 0.02;
-        // Near-target flag: suppress repulsion so particles can reach crowded targets
-        if (d < 8) nearTarget = true;
-      }
+        formationRemainingDist = d;
 
-      // Repulsion (always active, prevents merging)
-      // During formation, particles near their target use weaker repulsion
-      const repulDist = nearTarget ? 4 : REPULSION_DIST;
-      const repulStrength = nearTarget ? 0.1 : 0.3;
-      for (const q of particles) {
-        if (q === p) continue;
-        const dx = p.x - q.x, dy = p.y - q.y;
-        const d2 = dx*dx + dy*dy;
-        if (d2 < repulDist * repulDist && d2 > 0.01) {
-          const d = Math.sqrt(d2);
-          const force = (repulDist - d) / repulDist * repulStrength;
-          fx += (dx / d) * force;
-          fy += (dy / d) * force;
+        const catchUp = clamp(d / 46, 0, 1);
+        const pull = raw < 1 ? lerp(0.018, 0.036, catchUp) : lerp(0.013, 0.025, catchUp);
+        fx += dx * pull;
+        fy += dy * pull;
+
+        const arriveSpeed = raw < 1 ? lerp(1.3, 4.8, catchUp) : lerp(0.85, 3.2, catchUp);
+        const desiredVx = (dx / d) * arriveSpeed;
+        const desiredVy = (dy / d) * arriveSpeed;
+        const steerGain = raw < 1 ? 0.22 : 0.18;
+        fx += (desiredVx - p.vx) * steerGain;
+        fy += (desiredVy - p.vy) * steerGain;
+
+        if (raw > 0.72 && d < 10) nearTarget = true;
+        if (raw >= 1 && d < 1.15 && Math.hypot(p.vx, p.vy) < 0.42) {
+          p.x = desiredX;
+          p.y = desiredY;
+          p.vx *= 0.42;
+          p.vy *= 0.42;
+          formationRemainingDist = 0;
+          nearTarget = true;
         }
       }
 
-      // Soft boundary (gentle inward pull near edges)
-      const M = 30;
-      if (p.x < M)       fx += (M - p.x) * 0.003;
-      if (p.x > W - M)   fx -= (p.x - (W - M)) * 0.003;
-      if (p.y < M)       fy += (M - p.y) * 0.003;
-      if (p.y > H - M)   fy -= (p.y - (H - M)) * 0.003;
+      const repulDist = nearTarget ? 4.1 : (formationMode ? 6.0 : REPULSION_DIST);
+      const repulStrength = nearTarget ? 0.06 : (formationMode ? 0.16 : 0.30);
+      const buckets = nearbyBuckets(grid, p, repulsionCell);
+      for (const bucket of buckets) {
+        for (const q of bucket) {
+          if (q === p) continue;
+          const dx = p.x - q.x, dy = p.y - q.y;
+          const d2v = dx * dx + dy * dy;
+          if (d2v < repulDist * repulDist && d2v > 0.01) {
+            const d = Math.sqrt(d2v);
+            const force = (repulDist - d) / repulDist * repulStrength;
+            fx += (dx / d) * force;
+            fy += (dy / d) * force;
+          }
+        }
+      }
 
-      // Integrate
+      const M = 32;
+      if (p.x < M) fx += (M - p.x) * 0.0032;
+      if (p.x > W - M) fx -= (p.x - (W - M)) * 0.0032;
+      if (p.y < M) fy += (M - p.y) * 0.0032;
+      if (p.y > H - M) fy -= (p.y - (H - M)) * 0.0032;
+
       p.vx += fx * dt * 0.03;
       p.vy += fy * dt * 0.03;
 
-      // Damping (less damping during burst, slight extra damping during formation)
-      const dampFactor = mood === 'burst' ? 0.96 : (mood === 'formation' ? 0.93 : 0.92);
+      const dampFactor = mood === 'burst' ? 0.962 : (formationMode ? 0.885 : 0.918);
       const damp = Math.pow(dampFactor, dt * 0.016);
       p.vx *= damp;
       p.vy *= damp;
 
-      // Speed cap (varies by mood)
       let maxSpd = mood === 'burst' ? 6.0
-                 : mood === 'formation' ? 5.0
+                 : formationMode ? Math.max(
+                     lerp(5.4, 1.15, clamp((formationProgress - 0.82) / 0.18, 0, 1)),
+                     lerp(1.15, 5.4, clamp(formationRemainingDist / 44, 0, 1))
+                   )
                  : mood === 'radial' ? 2.0
-                 : mood === 'follow' ? 1.5
-                 : mood === 'orbit' ? 1.3
+                 : mood === 'follow' ? 1.48
+                 : mood === 'orbit' ? 1.28
                  : mood === 'gravity' ? 1.8
-                 : mood === 'wave' ? 0.9
-                 : mood === 'disperse' ? 1.2
-                 : 0.7;
-      if (postFormationSoftMs > 0) maxSpd = Math.min(maxSpd, 0.35);   // very slow drift right after formation
+                 : mood === 'wave' ? 0.92
+                 : mood === 'disperse' ? 1.18
+                 : 0.72;
+      if (postFormationSoftMs > 0) maxSpd = Math.min(maxSpd, 0.35);
+      if (PREFERS_REDUCED_MOTION) maxSpd *= 0.55;
       const v = Math.hypot(p.vx, p.vy);
-      if (v > maxSpd) { p.vx = p.vx / v * maxSpd; p.vy = p.vy / v * maxSpd; }
+      if (v > maxSpd) {
+        p.vx = p.vx / v * maxSpd;
+        p.vy = p.vy / v * maxSpd;
+      }
 
-      // Move
       p.x += p.vx * dt * 0.016;
       p.y += p.vy * dt * 0.016;
-
-      // Absolute clamp
-      p.x = Math.max(4, Math.min(W - 4, p.x));
-      p.y = Math.max(4, Math.min(H - 4, p.y));
+      p.x = clamp(p.x, 4, W - 4);
+      p.y = clamp(p.y, 4, H - 4);
     }
   }
 
-  // ============================================================
-  // Rendering
-  // ============================================================
-  function render() {
-    // Full clear — crisp, no trailing smudge (tsui-clock-like sharpness)
+  
+  function getParticleSprite(hue, qualityMul) {
+    const keyHue = Math.round(hue / 4) * 4;
+    const key = keyHue + ':' + Math.round(qualityMul * 100);
+    if (spriteCache.has(key)) return spriteCache.get(key);
+
+    const c = document.createElement('canvas');
+    const s = Math.round(92 * qualityMul);
+    c.width = s;
+    c.height = s;
+    const gctx = c.getContext('2d');
+    const r = s / 2;
+    const grad = gctx.createRadialGradient(r, r, 0, r, r, r);
+    grad.addColorStop(0.00, 'rgba(255,255,255,1)');
+    grad.addColorStop(0.08, `hsla(${keyHue}, 95%, 88%, 0.96)`);
+    grad.addColorStop(0.24, `hsla(${keyHue}, 90%, 70%, 0.46)`);
+    grad.addColorStop(0.58, `hsla(${keyHue}, 80%, 48%, 0.11)`);
+    grad.addColorStop(1.00, `hsla(${keyHue}, 70%, 36%, 0)`);
+    gctx.fillStyle = grad;
+    gctx.fillRect(0, 0, s, s);
+    spriteCache.set(key, c);
+    if (spriteCache.size > 18) spriteCache.delete(spriteCache.keys().next().value);
+    return c;
+  }
+
+  function renderBackground() {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
 
-    // Compute main color for this frame
     const hue = hueCurrent;
-    const coreColor = `hsl(${hue}, 85%, 72%)`;
-    const glowColor = `hsl(${hue}, 75%, 55%)`;
-    const outerColor = `hsl(${hue}, 70%, 45%)`;
+    const g = ctx.createRadialGradient(W * 0.50, H * 0.52, 0, W * 0.50, H * 0.52, Math.max(W, H) * 0.76);
+    g.addColorStop(0, `hsla(${hue}, 55%, 16%, 0.105)`);
+    g.addColorStop(0.46, `hsla(${(hue + 48) % 360}, 45%, 10%, 0.055)`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
 
-    // Pulse mood: collective synchronized brightness oscillation
+    const side = ctx.createRadialGradient(W * 0.18, H * 0.26, 0, W * 0.18, H * 0.26, Math.max(W, H) * 0.58);
+    side.addColorStop(0, `hsla(${(hue + 210) % 360}, 55%, 12%, 0.055)`);
+    side.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = side;
+    ctx.fillRect(0, 0, W, H);
+
+    for (const d of dust) {
+      const tw = 0.55 + 0.45 * Math.sin(performance.now() * d.speed + d.phase);
+      ctx.globalAlpha = d.a * tw;
+      ctx.fillStyle = `hsl(${(hue + 18) % 360}, 55%, 74%)`;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const vignette = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.28, W / 2, H / 2, Math.max(W, H) * 0.76);
+    vignette.addColorStop(0, 'rgba(0,0,0,0)');
+    vignette.addColorStop(1, 'rgba(0,0,0,0.70)');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  function renderConnections() {
+    if (!connectionsEnabled) return;
+
+    const live = particles.filter(p => p.lifePhase < 2);
+    const liveLimit = qualityMode === 'high' ? 640 : (qualityMode === 'eco' ? 300 : 440);
+    if (live.length < 2 || live.length > liveLimit) return;
+
+    const radius = mood === 'constellation' ? (qualityMode === 'eco' ? 76 : 92)
+                 : mood === 'formation' ? 46
+                 : (qualityMode === 'eco' ? 52 : 64);
+    const maxLines = mood === 'constellation' ? (qualityMode === 'eco' ? 170 : 320)
+                   : mood === 'formation' ? (qualityMode === 'eco' ? 100 : 160)
+                   : (qualityMode === 'eco' ? 120 : 220);
+    const grid = buildParticleGrid(live, radius);
+    const drawn = new Set();
+    let lines = 0;
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineWidth = mood === 'formation' ? 0.55 : 0.7;
+
+    for (const p of live) {
+      if (lines >= maxLines) break;
+      const buckets = nearbyBuckets(grid, p, radius);
+      for (const bucket of buckets) {
+        if (lines >= maxLines) break;
+        for (const q2 of bucket) {
+          if (q2.id <= p.id) continue;
+          const key = p.id + ':' + q2.id;
+          if (drawn.has(key)) continue;
+          const dx = p.x - q2.x, dy = p.y - q2.y;
+          const d2v = dx * dx + dy * dy;
+          if (d2v > radius * radius) continue;
+          const d = Math.sqrt(d2v);
+          const a = (1 - d / radius) * (mood === 'constellation' ? 0.22 : 0.10);
+          ctx.globalAlpha = a;
+          ctx.strokeStyle = `hsl(${hueCurrent}, 76%, 64%)`;
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(q2.x, q2.y);
+          ctx.stroke();
+          drawn.add(key);
+          lines++;
+          if (lines >= maxLines) break;
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  function renderGravityWell() {
+    if (mood !== 'gravity' || !gravityWell) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const t = moodTimerMs / 1000;
+    const r = 18 + Math.sin(t * 2.2) * 4;
+    const grad = ctx.createRadialGradient(gravityWell.x, gravityWell.y, 0, gravityWell.x, gravityWell.y, r * 3);
+    grad.addColorStop(0, `hsla(${hueCurrent}, 78%, 76%, 0.20)`);
+    grad.addColorStop(0.42, `hsla(${hueCurrent}, 72%, 48%, 0.08)`);
+    grad.addColorStop(1, `hsla(${hueCurrent}, 60%, 30%, 0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(gravityWell.x, gravityWell.y, r * 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function renderParticles() {
+    const hue = hueCurrent;
+    const q = currentQualitySettings();
+    const sprite = getParticleSprite(hue, q.spriteMul);
+    const now = performance.now();
+
     let pulseMul = 1;
     if (mood === 'pulse') {
       const t = moodTimerMs / 1000;
-      pulseMul = 0.5 + 0.7 * (0.5 + 0.5 * Math.sin(t * 1.8));   // 0.5 to 1.2
+      pulseMul = 0.56 + 0.70 * (0.5 + 0.5 * Math.sin(t * 1.8));
     }
 
-    for (const p of particles) {
-      // Life phase alpha
-      let alpha = 1;
-      if (p.lifePhase === 0) {
-        alpha = Math.min(1, p.phaseMs / 2500);
-      } else if (p.lifePhase === 2) {
-        alpha = Math.max(0, 1 - p.phaseMs / 2500);
+    if (trailsEnabled) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.lineCap = 'round';
+      for (const p of particles) {
+        const v = Math.hypot(p.vx, p.vy);
+        if (v < 0.20) continue;
+        let alpha = 1;
+        if (p.lifePhase === 0) alpha = Math.min(1, p.phaseMs / 2100);
+        else if (p.lifePhase === 2) alpha = Math.max(0, 1 - p.phaseMs / 2300);
+        const trail = clamp(v * 14, 2.5, 22) * p.depth;
+        ctx.globalAlpha = alpha * clamp(v / 1.8, 0.03, 0.20);
+        ctx.strokeStyle = `hsl(${hue + p.warmth}, 85%, 68%)`;
+        ctx.lineWidth = clamp(p.size * 0.75, 0.45, 1.2);
+        ctx.beginPath();
+        ctx.moveTo(p.x - p.vx * trail, p.y - p.vy * trail);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
       }
-      alpha *= pulseMul;
-
-      // Size is now fixed (no pulse)
-      const r = p.size;
-
-      // Mid glow — tighter, denser for crisp neon feel
-      ctx.globalAlpha = alpha * 0.45;
-      ctx.fillStyle = glowColor;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, Math.max(1.5, r * 2.2), 0, Math.PI * 2);
-      ctx.fill();
-
-      // Crisp colored core
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = coreColor;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, Math.max(0.8, r * 1.0), 0, Math.PI * 2);
-      ctx.fill();
-
-      // Small bright center (white sparkle)
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, Math.max(0.4, r * 0.4), 0, Math.PI * 2);
-      ctx.fill();
+      ctx.restore();
     }
-    ctx.globalAlpha = 1;
 
-    // Fireworks layer (rendered on top of main particles)
-    renderFireworks();
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of particles) {
+      let alpha = 1;
+      if (p.lifePhase === 0) alpha = Math.min(1, p.phaseMs / 2100);
+      else if (p.lifePhase === 2) alpha = Math.max(0, 1 - p.phaseMs / 2300);
+      const twinkle = 0.72 + 0.28 * Math.sin(now * p.twinkleSpeed + p.twinklePhase);
+      alpha *= twinkle * pulseMul * clamp(p.depth, 0.55, 1.22);
+
+      const pxSize = (15.5 + p.depth * 8.5) * p.size * q.spriteMul;
+      ctx.globalAlpha = clamp(alpha * 0.92, 0, 1.25);
+      ctx.drawImage(sprite, p.x - pxSize / 2, p.y - pxSize / 2, pxSize, pxSize);
+
+      ctx.globalAlpha = clamp(alpha * 0.95, 0, 1);
+      ctx.fillStyle = `hsl(${hue + p.warmth}, 96%, 83%)`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(0.52, p.size * 0.62), 0, Math.PI * 2);
+      ctx.fill();
+
+      if (p.depth > 1.05 || p.size > 1.12) {
+        ctx.globalAlpha = clamp(alpha * 0.78, 0, 1);
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(0.25, p.size * 0.25), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
   }
 
-  // ============================================================
-  // Main loop
-  // ============================================================
+  function render() {
+    renderBackground();
+    renderConnections();
+    renderGravityWell();
+    renderParticles();
+    renderFireworks();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+  }
+
+  
+  function maybeAdjustAutoDpr(tNow) {
+    if (qualityMode !== 'auto') return;
+    if (tNow - lastAutoDprAdjustMs < 2400) return;
+    lastAutoDprAdjustMs = tNow;
+
+    const before = autoDprCap;
+    if (avgFrameMs > 27 && autoDprCap > 1.15) autoDprCap = Math.max(1.15, autoDprCap - 0.25);
+    else if (avgFrameMs < 18.2 && autoDprCap < 2.25) autoDprCap = Math.min(2.25, autoDprCap + 0.25);
+
+    if (Math.abs(before - autoDprCap) >= 0.24) fitCanvas();
+  }
+
   function loop(tNow) {
-    const dt = Math.min(100, tNow - lastLoopT);
+    const rawDt = tNow - lastLoopT;
+    const dt = Math.min(80, rawDt > 0 ? rawDt : 16.7);
     lastLoopT = tNow;
-    if (running) {
-      update(dt);
-    }
+    avgFrameMs = avgFrameMs * 0.93 + dt * 0.07;
+
+    if (running) update(dt);
     render();
+    maybeAdjustAutoDpr(tNow);
     requestAnimationFrame(loop);
   }
 
-  // ============================================================
-  // Persistence (minimal — just hue and running state)
-  // ============================================================
+  
   function save() {
     try {
-      const payload = {
-        v: 1,
-        hue: hueCurrent,
-        running,
-        timestamp: Date.now(),
-      };
+      const payload = { v: VERSION, hue: hueCurrent, running, qualityMode, trailsEnabled, connectionsEnabled, timestamp: Date.now() };
       localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
     } catch (_) {}
   }
@@ -1421,94 +1766,170 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         hueTarget = p.hue;
       }
       if (typeof p.running === 'boolean') running = p.running;
+      if (typeof p.qualityMode === 'string' && QUALITY[p.qualityMode]) qualityMode = p.qualityMode;
+      if (typeof p.trailsEnabled === 'boolean') trailsEnabled = p.trailsEnabled;
+      if (typeof p.connectionsEnabled === 'boolean') connectionsEnabled = p.connectionsEnabled;
       return p;
     } catch (_) { return null; }
   }
 
-  // ============================================================
-  // Controls
-  // ============================================================
+  
   const btnPause = document.getElementById('btn-pause');
   const btnShift = document.getElementById('btn-shift');
+  const btnSpawn = document.getElementById('btn-spawn');
+  const btnQuality = document.getElementById('btn-quality');
+  const btnTrails = document.getElementById('btn-trails');
+  const btnConnections = document.getElementById('btn-connections');
+  const modalBackdrop = document.getElementById('modal-backdrop');
+  const modalClose = document.getElementById('modal-close');
+
+  function updatePauseButton() {
+    btnPause.textContent = running ? '❚❚' : '▶';
+    btnPause.classList.toggle('active', !running);
+  }
+
+  function updateQualityButton() {
+    const label = currentQualitySettings().label;
+    btnQuality.textContent = 'Q:' + label;
+    btnQuality.classList.toggle('active', qualityMode !== 'auto');
+  }
+
+  function updateTrailButton() {
+    btnTrails.textContent = 'TR:' + (trailsEnabled ? 'ON' : 'OFF');
+    btnTrails.classList.toggle('active', trailsEnabled);
+    btnTrails.setAttribute('aria-pressed', trailsEnabled ? 'true' : 'false');
+  }
+
+  function updateConnectionButton() {
+    btnConnections.textContent = 'LN:' + (connectionsEnabled ? 'ON' : 'OFF');
+    btnConnections.classList.toggle('active', connectionsEnabled);
+    btnConnections.setAttribute('aria-pressed', connectionsEnabled ? 'true' : 'false');
+  }
+
+  function toggleTrails() {
+    trailsEnabled = !trailsEnabled;
+    updateTrailButton();
+    showToast('trails: ' + (trailsEnabled ? 'on' : 'off'));
+  }
+
+  function toggleConnections() {
+    connectionsEnabled = !connectionsEnabled;
+    updateConnectionButton();
+    showToast('lines: ' + (connectionsEnabled ? 'on' : 'off'));
+  }
 
   btnPause.addEventListener('click', () => {
     running = !running;
-    btnPause.textContent = running ? '❚❚' : '▶';
+    updatePauseButton();
+    showToast(running ? 'play' : 'pause');
   });
 
   btnShift.addEventListener('click', () => {
     shiftHue();
     scheduleNextHueShift();
+    showToast('color shift');
   });
 
-  const btnSpawn = document.getElementById('btn-spawn');
   btnSpawn.addEventListener('click', () => {
-    const alive = particles.filter(p => p.lifePhase < 2).length;
-    const remaining = COUNT_MAX - alive;
+    const remaining = COUNT_MAX - liveCount();
     const n = Math.min(10, remaining);
-    for (let i = 0; i < n; i++) {
-      particles.push(spawnParticle());
-    }
+    for (let i = 0; i < n; i++) particles.push(spawnParticle({ edge: Math.random() < 0.25 }));
+    showToast('particles +10');
   });
 
   document.getElementById('btn-spawn-max').addEventListener('click', () => {
-    const alive = particles.filter(p => p.lifePhase < 2).length;
-    const remaining = COUNT_MAX - alive;
-    for (let i = 0; i < remaining; i++) {
-      particles.push(spawnParticle());
-    }
+    const remaining = COUNT_MAX - liveCount();
+    for (let i = 0; i < remaining; i++) particles.push(spawnParticle({ edge: Math.random() < 0.45 }));
+    showToast('particles max');
   });
 
   document.getElementById('btn-circle').addEventListener('click', () => startFormation('circle'));
   document.getElementById('btn-heart').addEventListener('click',  () => startFormation('heart'));
   document.getElementById('btn-star').addEventListener('click',   () => startFormation('star'));
-  document.getElementById('btn-text').addEventListener('click',   () => {
-    const text = window.prompt(currentLangPrompt(), '');
-    if (text && text.trim()) startFormation('text', text.trim());
+  document.getElementById('btn-text').addEventListener('click',   () => promptTextFormation());
+  document.getElementById('btn-fireworks').addEventListener('click', () => triggerFireworkShow());
+
+  btnQuality.addEventListener('click', () => {
+    const idx = QUALITY_ORDER.indexOf(qualityMode);
+    qualityMode = QUALITY_ORDER[(idx + 1) % QUALITY_ORDER.length];
+    if (qualityMode === 'auto') autoDprCap = 2.0;
+    updateQualityButton();
+    fitCanvas();
+    showToast('quality: ' + qualityMode);
   });
-  document.getElementById('btn-fireworks').addEventListener('click', () => {
-    triggerFireworkShow();
-  });
+
+  btnTrails.addEventListener('click', toggleTrails);
+  btnConnections.addEventListener('click', toggleConnections);
+
   function currentLangPrompt() {
-    // Very simple bilingual prompt — no full i18n system here yet
     return navigator.language && navigator.language.startsWith('ja')
       ? '表示する文字を入力（1〜20字）'
       : 'enter text (1-20 chars)';
   }
 
-  // About modal
-  const modalBackdrop = document.getElementById('modal-backdrop');
-  document.getElementById('btn-about').addEventListener('click', () => {
+  function promptTextFormation() {
+    const text = window.prompt(currentLangPrompt(), '');
+    const safe = safeTextSlice(text, 20);
+    if (safe) startFormation('text', safe);
+  }
+
+  function openModal() {
+    lastFocusedBeforeModal = document.activeElement;
     modalBackdrop.classList.add('open');
-  });
-  document.getElementById('modal-close').addEventListener('click', () => {
+    modalClose.focus();
+  }
+
+  function closeModal() {
     modalBackdrop.classList.remove('open');
-  });
+    if (lastFocusedBeforeModal && typeof lastFocusedBeforeModal.focus === 'function') {
+      lastFocusedBeforeModal.focus();
+    }
+  }
+
+  document.getElementById('btn-about').addEventListener('click', openModal);
+  modalClose.addEventListener('click', closeModal);
   modalBackdrop.addEventListener('click', (e) => {
-    // Close when clicking outside the modal content (on the backdrop itself)
-    if (e.target === modalBackdrop) modalBackdrop.classList.remove('open');
+    if (e.target === modalBackdrop) closeModal();
   });
+
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && modalBackdrop.classList.contains('open')) {
-      modalBackdrop.classList.remove('open');
+    if (modalBackdrop.classList.contains('open')) {
+      if (e.key === 'Escape') closeModal();
+      return;
+    }
+    if (e.key === ' ' || e.key === 'Spacebar') {
+      e.preventDefault();
+      running = !running;
+      updatePauseButton();
+      showToast(running ? 'play' : 'pause');
+    } else if (e.key === 'c' || e.key === 'C') {
+      shiftHue();
+      scheduleNextHueShift();
+      showToast('color shift');
+    } else if (e.key === 'f' || e.key === 'F') {
+      triggerFireworkShow();
+    } else if (e.key === 't' || e.key === 'T') {
+      promptTextFormation();
+    } else if (e.key === 'r' || e.key === 'R') {
+      toggleTrails();
+    } else if (e.key === 'l' || e.key === 'L') {
+      toggleConnections();
     }
   });
 
-  // Click anywhere on canvas: attract particles toward click point briefly
   canvas.addEventListener('click', (e) => {
     const rect = canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) * (W / rect.width);
     const y = (e.clientY - rect.top) * (H / rect.height);
-    // Give all particles a nudge toward the click
+    const pull = mood === 'formation' ? 0.18 : 0.82;
     for (const p of particles) {
       const dx = x - p.x, dy = y - p.y;
       const d = Math.hypot(dx, dy) || 1;
-      p.vx += (dx / d) * 0.8;
-      p.vy += (dy / d) * 0.8;
+      p.vx += (dx / d) * pull;
+      p.vy += (dy / d) * pull;
     }
   });
 
-  // Mouse awareness: track mouse position while over canvas
   canvas.addEventListener('pointermove', (e) => {
     const rect = canvas.getBoundingClientRect();
     mousePos = {
@@ -1517,26 +1938,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     };
     mouseIdleMs = 0;
   });
-  canvas.addEventListener('pointerleave', () => {
-    mousePos = null;
-  });
+  canvas.addEventListener('pointerleave', () => { mousePos = null; });
 
-  // ============================================================
-  // Init
-  // ============================================================
-  fitCanvas();
+  
   load();
-  if (particles.length === 0) {
-    seedParticles();
-  }
+  fitCanvas();
+  updatePauseButton();
+  updateQualityButton();
+  updateTrailButton();
+  updateConnectionButton();
+
+  if (particles.length === 0) seedParticles();
   newMoodCycle();
   scheduleNextHueShift();
   nextBirthInMs = rand(3000, 8000);
 
-  // Update pause button state
-  btnPause.textContent = running ? '❚❚' : '▶';
-
-  // Periodic save (only when needed, low frequency)
   setInterval(save, 30000);
   window.addEventListener('beforeunload', save);
   document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
