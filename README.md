@@ -10,9 +10,10 @@
 <img width="480" alt="image" src="./images/2.1.jpg" />  
 
 ## 使い方  
-以下の２つの起動方法があります。  
-1. [https://hajimetwi3.github.io/Tsui-Lume/](https://hajimetwi3.github.io/Tsui-Lume/)をブラウザから開く  
-2. index.htmlをダウンロードし、ブラウザから開く  
+以下の３つの起動方法があります。  
+1. [https://hajimetwi3.github.io/Tsui-Lume/](https://hajimetwi3.github.io/Tsui-Lume/)をブラウザから開く
+2. [https://tsuilume.pages.dev/](https://tsuilume.pages.dev/)をブラウザから開く  
+3. index.htmlをダウンロードし、ブラウザから開く  
 
 ## ライセンス  
 
