@@ -11,9 +11,8 @@
 
 ## 使い方  
 以下の３つの起動方法があります。  
-1. [https://hajimetwi3.github.io/Tsui-Lume/](https://hajimetwi3.github.io/Tsui-Lume/)をブラウザから開く
-2. [https://tsuilume.pages.dev/](https://tsuilume.pages.dev/)をブラウザから開く  
-3. index.htmlをダウンロードし、ブラウザから開く  
+1. [https://tsuilume.pages.dev/](https://tsuilume.pages.dev/)をブラウザから開く  
+2. index.htmlをダウンロードし、ブラウザから開く  
 
 ---  
 ## 注意事項  
